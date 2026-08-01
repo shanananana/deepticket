@@ -2,7 +2,7 @@
 
 <p align="right"><a href="README.md">中文</a> | <strong>English</strong></p>
 
-**An intelligent Agent platform for production incidents and project Q&A.** Built on the [OpenHands](https://github.com/OpenHands/OpenHands) Agent Server, it orchestrates LLM reasoning, real source code, logs, and configuration lookups into a practical triage and Q&A pipeline.
+**An intelligent Agent platform for production incidents and project Q&A** (OpenHands · LLM · SRE / AIOps · ticket analysis · root cause · MCP · Webhook). Built on the [OpenHands](https://github.com/OpenHands/OpenHands) Agent Server, it orchestrates LLM reasoning, real source code, logs, and configuration lookups into a practical triage and Q&A pipeline.
 
 - **External input (Ingress)** — Monitoring, Jira, internal ticketing, and other systems push events over HTTP (`POST /api/ingress/events`) without user login; analysis starts automatically.
 - **External output (Outbound)** — After analysis, results are delivered via Webhook to your ITSM/ticketing stack, or stored for later lookup, closing the loop with upstream systems.
@@ -298,6 +298,10 @@ bash scripts/verify.sh --online
 - macOS / Linux, Python 3.11+
 - Docker (optional, for `scripts/redis.sh`)
 - Any **OpenAI-compatible** LLM endpoint
+
+---
+
+<p align="center">⭐ If this project helps you, please consider giving it a <a href="https://github.com/shanananana/deepticket">Star</a>!</p>
 
 ---
 

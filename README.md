@@ -2,7 +2,7 @@
 
 <p align="right"><strong>中文</strong> | <a href="README.en.md">English</a></p>
 
-**面向线上故障与项目答疑的智能 Agent 平台。** 基于 [OpenHands](https://github.com/OpenHands/OpenHands) Agent Server 构建，把 LLM 推理、真实源码、日志与配置查询编排成一条可落地的排查与答疑流水线。
+**面向线上故障与项目答疑的智能 Agent 平台**（OpenHands · LLM · SRE / AIOps · 工单分析 · 根因排查 · MCP · Webhook）。基于 [OpenHands](https://github.com/OpenHands/OpenHands) Agent Server 构建，把 LLM 推理、真实源码、日志与配置查询编排成一条可落地的排查与答疑流水线。
 
 - **外部系统输入（Ingress）** — 监控、Jira、内部工单等通过 HTTP 推送事件（`POST /api/ingress/events`），无需人工登录，自动触发分析。
 - **外部系统输出（Outbound）** — 分析完成后按路由 Webhook 回写工单/ITSM，或仅存库供查询，与上游系统闭环。
@@ -395,6 +395,10 @@ bash scripts/verify.sh --online # 含 Agent Server / Web 在线检查
 - macOS / Linux，Python 3.11+
 - Docker（可选，用于 `scripts/redis.sh` 起 Redis）
 - 任意 **OpenAI 兼容** LLM 端点
+
+---
+
+<p align="center">⭐ 如果这个项目对你有帮助，欢迎 <a href="https://github.com/shanananana/deepticket">Star</a> 支持一下～</p>
 
 ---
 

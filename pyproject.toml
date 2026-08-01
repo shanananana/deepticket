@@ -1,12 +1,27 @@
 [project]
 name = "deepticket"
 version = "0.1.0"
-description = "Agent platform for ticket analysis with layered architecture"
+description = "AI Agent platform for incident triage and project Q&A on OpenHands — Git sync, logs, config center, Ingress/Webhook"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [{ name = "DeepTicket Contributors" }]
-keywords = ["agent", "ticket", "openhands", "fastapi", "llm"]
+keywords = [
+  "agent",
+  "openhands",
+  "llm",
+  "incident-response",
+  "root-cause-analysis",
+  "sre",
+  "aiops",
+  "on-call",
+  "ticket",
+  "webhook",
+  "mcp",
+  "fastapi",
+  "devops",
+  "code-analysis",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Framework :: FastAPI",
