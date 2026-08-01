@@ -1,0 +1,82 @@
+[project]
+name = "deepticket"
+version = "0.1.0"
+description = "Agent platform for ticket analysis with layered architecture"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "DeepTicket Contributors" }]
+keywords = ["agent", "ticket", "openhands", "fastapi", "llm"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Framework :: FastAPI",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Bug Tracking",
+]
+dependencies = [
+  "openhands-sdk==1.39.1",
+  "openhands-tools==1.39.1",
+  "openhands-workspace==1.39.1",
+  "openhands-agent-server==1.39.1",
+  "httpx>=0.27",
+  "openai>=1.0",
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
+  "pyyaml>=6.0",
+  "redis>=5.0",
+  "pydantic>=2.0",
+  "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "ruff>=0.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/shanananana/deepticket"
+Repository = "https://github.com/shanananana/deepticket"
+
+[project.scripts]
+deepticket = "deepticket.app:main"
+deepticket-verify = "deepticket.verify.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["deepticket*"]
+
+[tool.setuptools.package-data]
+deepticket = [
+  "web/*",
+  "web/**/*",
+  "skills/**/*",
+]
+
+[tool.setuptools.data-files]
+"." = ["deepticket.example.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["deepticket", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["deepticket"]

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>工作台 · DeepTicket</title>
+  <link rel="stylesheet" href="/static/style.css?v=2" />
+</head>
+<body>
+  <div class="aurora"></div>
+  <div class="grain"></div>
+
+  <div class="app-shell">
+    <!-- 侧栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark sm">DT</div>
+        <div>
+          <h1>DeepTicket</h1>
+          <p class="subtitle">工单分析工作台</p>
+        </div>
+      </div>
+
+      <button id="newChatBtn" type="button" class="btn primary full new-chat-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>新对话</span>
+      </button>
+
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="searchInput" type="text" placeholder="搜索对话…" />
+      </div>
+
+      <div class="list-label">对话</div>
+      <div id="chatList" class="chat-list"></div>
+
+      <div class="sidebar-footer">
+        <button id="userChipBtn" type="button" class="user-chip" title="账户操作">
+          <span class="user-avatar" id="userAvatar">A</span>
+          <span class="user-meta">
+            <span id="userLabel" class="user-name">—</span>
+            <span class="user-role">分析工作台</span>
+          </span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m18 15-6-6-6 6"/></svg>
+        </button>
+        <div id="userMenu" class="menu-panel up hidden" style="position:absolute;bottom:64px;left:10px;right:10px;">
+          <div class="menu-info">
+            <div class="info-row"><span class="info-key">当前用户</span><span class="info-val" id="menuUserName">—</span></div>
+          </div>
+          <button id="logoutBtn" type="button" class="menu-item danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            退出登录
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <div id="scrim" class="scrim hidden"></div>
+
+    <!-- 主面板 -->
+    <main class="main-panel">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="menuToggle" type="button" class="icon-btn menu-toggle" title="打开侧栏">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <div>
+            <div id="chatTitle" class="chat-title">选择或新建对话</div>
+            <div id="conversationId" class="chat-meta"></div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div id="statusPill" class="status-pill ready">
+            <span class="status-dot"></span>
+            <span id="status">就绪</span>
+          </div>
+          <div class="menu-wrap">
+            <button id="settingsBtn" type="button" class="icon-btn" title="更多操作">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+            <div id="settingsMenu" class="menu-panel hidden">
+              <div class="menu-info">
+                <div class="info-row"><span class="info-key">模型</span><span class="info-val" id="modelLabel">—</span></div>
+                <div class="info-row"><span class="info-key">知识库</span><span class="info-val" id="knowledgeLabel" title="workspace/knowledge/=Git 缓存；workspace/project/=Agent 只读入口（同一仓库，非两份代码）">—</span></div>
+                <div class="info-row"><span class="info-key">存储</span><span class="info-val" id="storageLabel">—</span></div>
+              </div>
+              <button id="syncKnowledgeBtn" type="button" class="menu-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                同步知识库
+              </button>
+              <button id="reloadSkillsBtn" type="button" class="menu-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                重载 Skills
+              </button>
+              <div class="menu-sep"></div>
+              <button id="ticketTemplateBtn" type="button" class="menu-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                插入工单模板
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div id="messages" class="messages">
+        <div class="messages-inner">
+          <div id="emptyState" class="empty-state">
+            <div class="empty-glyph">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <h2>开始分析</h2>
+            <p>新建一个对话，描述工单现象或粘贴报错日志，Agent 将只读检索 workspace 中的代码与知识库。</p>
+            <div class="hint-grid">
+              <button type="button" class="hint-card" data-hint="分析 workspace 中 ad-agent 项目的启动流程，梳理入口与依赖">
+                <strong>启动流程分析</strong>梳理服务入口与关键依赖
+              </button>
+              <button type="button" class="hint-card" data-hint="根据报错日志定位接口 500 的根因，给出修复建议">
+                <strong>日志根因定位</strong>从日志反推故障源头
+              </button>
+              <button type="button" class="hint-card" data-hint="对比配置与代码，排查环境不一致导致的异常">
+                <strong>配置一致性检查</strong>环境差异排查
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="composer-zone">
+        <form id="chatForm" class="composer">
+          <div class="composer-inner">
+            <textarea id="prompt" rows="1" placeholder="描述工单、粘贴日志，或提问…" disabled></textarea>
+            <div class="composer-bar">
+              <span class="composer-hint"><kbd>Enter</kbd> 换行 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 发送</span>
+              <div class="composer-actions">
+                <button id="stopBtn" type="button" class="btn secondary hidden">停止</button>
+                <button id="sendBtn" type="submit" class="btn primary send-btn" title="发送" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 22-9z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <div id="toastStack" class="toast-stack"></div>
+
+  <script type="module" src="/static/app.js?v=4"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+# 敏感与本地配置 — 禁止提交
+deepticket.yaml
+deepticket.*.yaml
+!deepticket.example.yaml
+
+.env
+.env.*
+
+# 旧版分散配置目录（本地残留）
+deepticket/knowledge/
+deepticket/routing/
+deepticket/mcp/
+
+# 运行时与依赖
+.venv/
+venv/
+*.egg-info/
+deepticket.egg-info/
+dist/
+build/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Agent 工作区与持久化数据
+workspace/
+data/
+
+# 编辑器与系统
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# 密钥文件
+secrets/
+*.pem
+*.key

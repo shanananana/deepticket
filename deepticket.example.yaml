@@ -1,0 +1,100 @@
+# DeepTicket 统一配置（复制为 deepticket.yaml 后填写，勿提交含真实密钥的文件）
+# cp deepticket.example.yaml deepticket.yaml
+#
+# 所有配置与密钥均在本文件；deepticket.yaml 已 gitignore。
+# 下方均为占位示例，请替换为你自己的值（不要提交真实密钥）。
+
+llm:
+  model: openai/deepseek-v4-flash
+  base_url: https://api.deepseek.com/v1
+  api_key: sk-your-llm-api-key-here          # 必填
+  label: DeepSeek V4 Flash
+
+web:
+  host: 127.0.0.1
+  port: 8600
+
+engine:
+  agent_server_host: 127.0.0.1
+  agent_server_port: 8100
+  llm_profile: deepseek-v4-flash
+  session_api_key: ""                        # 留空时 setup.sh 自动生成并写回本文件
+
+storage:
+  backend: redis                             # local | redis
+  redis_start_docker: true                   # 本机 Docker 起 Redis；接公司 Redis 改为 false
+  local:
+    root: ./data
+  redis:
+    url: redis://127.0.0.1:6379/0
+    username: ""                             # 可选；Redis 6 ACL
+    password: ""                             # 可选；本地无密码留空
+    key_prefix: "deepticket:"
+    ttl_seconds: 31536000                    # 365 天；0 = 永不过期
+
+knowledge:
+  git_cache_dir: ./workspace/knowledge
+  workspace_dir: ./workspace/project
+  # Git 鉴权（token 写在 key，勿写进 url）:
+  #   GitHub → https://{key}@github.com/org/repo.git
+  #   GitLab → https://oauth2:{key}@gitlab.com/group/project.git
+  #   自建   → url_template: https://oauth2:{key}@gitlab.corp.com/group/project.git
+  repos:
+    - id: my-github-service
+      url: https://github.com/your-org/your-service.git
+      key: ghp_your_github_token_here
+      branch: main
+      workspace_subdir: my-github-service
+    # - id: my-gitlab-service
+    #   url: https://gitlab.com/your-group/your-project.git
+    #   key: glpat-your_gitlab_token_here
+    #   branch: main
+    #   workspace_subdir: my-gitlab-service
+
+extensions:
+  skills_dir: deepticket/skills
+  user_skills_dir: ""
+  workspace_skills_dir: workspace/project/.openhands/skills
+
+ingress:
+  routes:
+    - type: incident
+      description: 监控/告警类故障
+      match:
+        sources: [monitor, alertmanager, grafana]
+        title_keywords: ["500", "down", "error", "异常", "告警"]
+      outbound:
+        method: webhook                        # 或 store_only
+        url: http://your-itsm/incident/hook    # webhook 回调地址；不用 webhook 则改 store_only
+      prompt_suffix: 这是外部系统推送的生产故障，请优先给出根因、影响面与止血建议。
+      repo_ids: [my-github-service]
+    - type: ticket
+      description: 通用工单
+      match:
+        sources: [jira, internal-ticket, itsm]
+      outbound:
+        method: webhook
+        url: http://your-itsm/ticket/hook
+      repo_ids: [my-github-service]
+    - type: consultation
+      description: 咨询类，无需回调
+      match:
+        sources: [chat, api]
+        body_keywords: ["是什么", "怎么理解", "介绍一下"]
+      outbound:
+        method: store_only
+    - type: default
+      description: 默认
+      match:
+        default: true
+      outbound:
+        method: store_only
+
+mcp:
+  servers:
+    example-disabled:
+      transport: stdio
+      command: echo
+      args: ["replace-with-your-mcp-server"]
+      description: 示例 MCP（默认禁用）
+      enabled: false

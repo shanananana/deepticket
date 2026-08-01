@@ -1,0 +1,22 @@
+# DeepTicket 可选依赖：Redis 存储后端
+# 启动：bash scripts/redis.sh up
+# 业务存储由 deepticket.yaml 的 storage.backend 控制（默认 redis）
+
+services:
+  redis:
+    image: docker.m.daocloud.io/library/redis:7-alpine
+    container_name: deepticket-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - deepticket_redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  deepticket_redis_data:
