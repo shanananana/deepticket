@@ -1,5 +1,7 @@
 # DeepTicket
 
+<p align="right"><strong>中文</strong> | <a href="README.en.md">English</a></p>
+
 **面向线上故障与项目答疑的智能 Agent 平台。** 基于 [OpenHands](https://github.com/OpenHands/OpenHands) Agent Server 构建，把 LLM 推理、真实源码、日志与配置查询编排成一条可落地的排查与答疑流水线。
 
 - **外部系统输入（Ingress）** — 监控、Jira、内部工单等通过 HTTP 推送事件（`POST /api/ingress/events`），无需人工登录，自动触发分析。
