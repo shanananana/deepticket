@@ -21,7 +21,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**面向线上故障与项目答疑的智能 Agent 平台**（OpenHands · SRE / AIOps · 工单 · MCP · Webhook）。内置 [OpenHands](https://github.com/OpenHands/OpenHands) Agent Server — `bash scripts/start_all.sh` 即可在**内网服务器**拉起 Agent 引擎与 Web 工作台，团队浏览器共用；并串联 Git 源码、日志/配置查询与 Ingress / Webhook，形成可复核的排查流水线。
+**面向线上故障与项目答疑的智能 Agent 平台**（OpenHands · SRE / AIOps · 工单 · MCP · Webhook）。内置 [OpenHands](https://github.com/OpenHands/OpenHands) Agent Server，支持**服务器一键部署**（`bash scripts/start_all.sh`）：MCP、Skill 与知识库在服务端统一配置，产品、运营等非开发同学打开浏览器即可提问，无需每人本地安装 Agent 或单独配 MCP；并串联 Git 源码、日志/配置查询与 Ingress / Webhook，形成可复核的排查流水线。
 
 - **Ingress** — 监控 / 工单 HTTP 推送，异步队列 + API Key
 - **Outbound** — 分析结果 Webhook 回写或仅存库

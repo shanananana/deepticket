@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**An intelligent Agent platform for production incidents and project Q&A** (OpenHands · SRE / AIOps · tickets · MCP · Webhook). Ships with the [OpenHands](https://github.com/OpenHands/OpenHands) Agent Server — `bash scripts/start_all.sh` deploys a **shared Agent engine + web workbench** on your network; teams use the browser, while Git source, log/config lookups, Ingress, and Webhooks form a verifiable triage pipeline.
+**An intelligent Agent platform for production incidents and project Q&A** (OpenHands · SRE / AIOps · tickets · MCP · Webhook). Built on the [OpenHands](https://github.com/OpenHands/OpenHands) Agent Server with **one-command server deployment** (`bash scripts/start_all.sh`): MCP, Skills, and knowledge bases are configured once on the server—PMs, ops, and other non-developers can ask questions in the browser without local Agent setup or per-user MCP wiring; Git source, log/config lookups, Ingress, and Webhooks form a verifiable triage pipeline.
 
 - **Ingress** — HTTP events from monitoring / ITSM, async queue + API key
 - **Outbound** — Webhook to ITSM or store-only
