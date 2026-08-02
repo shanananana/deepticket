@@ -1,9 +1,3 @@
-
-
-<p align="center">
-  <img src="docs/assets/banner.png" alt="DeepTicket — AI Agent platform for incident triage and project Q&A" width="720">
-</p>
-
 <p align="center">
   <a href="README.en.md">English</a>
   ·
