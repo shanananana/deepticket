@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="DeepTicket — Agent platform for incidents and project Q&A" width="720">
+  <img src="docs/assets/banner.png" alt="DeepTicket — AI Agent platform for incident triage and project Q&A" width="720">
 </p>
 
 <p align="center">

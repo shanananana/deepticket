@@ -1,7 +1,7 @@
 
 
 <p align="center">
-  <img src="docs/assets/banner.png" alt="DeepTicket — 智能 Agent 平台 · 故障排查与项目答疑" width="720">
+  <img src="docs/assets/banner.png" alt="DeepTicket — AI Agent platform for incident triage and project Q&A" width="720">
 </p>
 
 <p align="center">

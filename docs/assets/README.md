@@ -6,8 +6,8 @@
 |------|---------|
 | `logo.png` | Square logo / app icon |
 | `logo.svg` | Vector logo (legacy) |
-| `banner.png` | README header banner (export from `banner.svg`) |
-| `banner.svg` | Vector banner source (DeepSeek-inspired light style) |
+| `banner.png` | README header banner |
+| `banner.svg` | Vector banner (legacy) |
 | `architecture.svg` | Architecture diagram |
 | `demo-flow.svg` | Static demo flow (fallback diagram) |
 | `demo.mp4` | Full demo screen recording (~67s, 1280×682, 15fps) |
@@ -35,12 +35,5 @@ README embed (root `README.md` / `README.en.md`):
 ```
 
 GitHub does not reliably play `<video>` in README; use GIF + MP4 link instead.
-
-Re-export banner PNG after editing SVG:
-
-```bash
-qlmanage -t -s 1200 -o docs/assets/ docs/assets/banner.svg
-mv docs/assets/banner.svg.png docs/assets/banner.png
-```
 
 **Do not commit** real API keys, internal URLs, or production ticket content in recordings.
