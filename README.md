@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="DeepTicket — AI Agent platform for incident triage and project Q&A" width="720">
+  <img src="docs/assets/banner.png" alt="DeepTicket — 智能 Agent 平台 · 故障排查与项目答疑" width="720">
 </p>
 
 <p align="center">
@@ -30,12 +30,12 @@
 ## Demo
 
 <p align="center">
-  <video src="docs/assets/demo.mp4" width="720" autoplay loop muted playsinline controls>
-    <a href="docs/assets/demo.mp4">播放 DeepTicket 演示视频</a>
-  </video>
+  <a href="docs/assets/demo.mp4">
+    <img src="docs/assets/demo.gif" width="720" alt="DeepTicket 演示：Web 工作台 · ad_agent ROI 归因">
+  </a>
 </p>
 
-<p align="center"><sub>Web 工作台 · ad_agent ROI 归因（约 67s）</sub></p>
+<p align="center"><sub>点击 GIF 查看完整 MP4（约 67s）· GitHub 不支持 README 内嵌 <code>&lt;video&gt;</code></sub></p>
 
 ---
 

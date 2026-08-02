@@ -6,11 +6,12 @@
 |------|---------|
 | `logo.png` | Square logo / app icon |
 | `logo.svg` | Vector logo (legacy) |
-| `banner.png` | README header banner |
-| `banner.svg` | Vector banner (legacy) |
+| `banner.png` | README header banner (export from `banner.svg`) |
+| `banner.svg` | Vector banner source (DeepSeek-inspired light style) |
 | `architecture.svg` | Architecture diagram |
 | `demo-flow.svg` | Static demo flow (fallback diagram) |
-| `demo.mp4` | README demo screen recording (~67s, 1280×682, 15fps) |
+| `demo.mp4` | Full demo screen recording (~67s, 1280×682, 15fps) |
+| `demo.gif` | README autoplay preview (720px, links to MP4) |
 
 ## Re-compress a new recording
 
@@ -25,10 +26,21 @@ ffmpeg -y -hwaccel videotoolbox -i /path/to/recording.mp4 \
   docs/assets/demo.mp4
 ```
 
-README embed (already wired in root `README.md` / `README.en.md`):
+README embed (root `README.md` / `README.en.md`):
 
 ```html
-<video src="docs/assets/demo.mp4" width="720" autoplay loop muted playsinline controls></video>
+<a href="docs/assets/demo.mp4">
+  <img src="docs/assets/demo.gif" width="720" alt="DeepTicket demo">
+</a>
+```
+
+GitHub does not reliably play `<video>` in README; use GIF + MP4 link instead.
+
+Re-export banner PNG after editing SVG:
+
+```bash
+qlmanage -t -s 1200 -o docs/assets/ docs/assets/banner.svg
+mv docs/assets/banner.svg.png docs/assets/banner.png
 ```
 
 **Do not commit** real API keys, internal URLs, or production ticket content in recordings.

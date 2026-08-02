@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="DeepTicket — AI Agent platform for incident triage and project Q&A" width="720">
+  <img src="docs/assets/banner.png" alt="DeepTicket — Agent platform for incidents and project Q&A" width="720">
 </p>
 
 <p align="center">
@@ -30,12 +30,12 @@
 ## Demo
 
 <p align="center">
-  <video src="docs/assets/demo.mp4" width="720" autoplay loop muted playsinline controls>
-    <a href="docs/assets/demo.mp4">Play DeepTicket demo video</a>
-  </video>
+  <a href="docs/assets/demo.mp4">
+    <img src="docs/assets/demo.gif" width="720" alt="DeepTicket demo: web workbench · ad_agent ROI analysis">
+  </a>
 </p>
 
-<p align="center"><sub>Web workbench · ad_agent ROI analysis (~67s)</sub></p>
+<p align="center"><sub>Click the GIF for the full MP4 (~67s) · GitHub does not render <code>&lt;video&gt;</code> in README</sub></p>
 
 ---
 
