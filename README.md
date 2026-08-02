@@ -1,3 +1,5 @@
+
+
 <p align="center">
   <img src="docs/assets/banner.png" alt="DeepTicket — 智能 Agent 平台 · 故障排查与项目答疑" width="720">
 </p>
@@ -29,14 +31,8 @@
 
 ## Demo
 
-<p align="center">
-  <a href="docs/assets/demo.mp4">
-    <img src="docs/assets/demo.gif" width="720" alt="DeepTicket 演示：Web 工作台 · ad_agent ROI 归因">
-  </a>
-</p>
-
-<p align="center"><sub>点击 GIF 查看完整 MP4（约 67s）· GitHub 不支持 README 内嵌 <code>&lt;video&gt;</code></sub></p>
-
+  https://github.com/user-attachments/assets/8a1fc061-dd87-4fee-b8b3-9b62b8b594a0
+  
 ---
 
 ## 为什么做 DeepTicket
