@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>工作台 · DeepTicket</title>
-  <link rel="stylesheet" href="/static/style.css?v=2" />
+  <link rel="stylesheet" href="/static/style.css?v=10" />
 </head>
 <body>
   <div class="aurora"></div>
@@ -92,6 +92,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                 重载 Skills
               </button>
+              <button id="recordModeBtn" type="button" class="menu-item menu-toggle-item" title="录屏时保持 Agent 步骤展开">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+                录屏模式
+              </button>
               <div class="menu-sep"></div>
               <button id="ticketTemplateBtn" type="button" class="menu-item">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -111,8 +115,11 @@
             <h2>开始分析</h2>
             <p>新建一个对话，描述工单现象或粘贴报错日志，Agent 将只读检索 workspace 中的代码与知识库。</p>
             <div class="hint-grid">
-              <button type="button" class="hint-card" data-hint="分析 workspace 中 ad-agent 项目的启动流程，梳理入口与依赖">
-                <strong>启动流程分析</strong>梳理服务入口与关键依赖
+              <button type="button" class="hint-card" data-hint="为什么 2026-07-28 之后整体投放 ROI 明显降低？请直接查 ad-agent 的 campaign_metrics.log：对比 7/24-7/27 与 7/28-8/01，并读 budget_audit.log 与 campaigns.yaml 给出根因和建议。不要运行 generate_campaign_data.py。">
+                <strong>ad_agent ROI 归因</strong>查 .log + 读配置
+              </button>
+              <button type="button" class="hint-card" data-hint="结合 ad-agent 的 campaign_metrics.log 与 budget_audit.log，说明低 ROI 计划为何在 7/28 后被放大预算。只读查询，不要生成数据。">
+                <strong>ad_agent 预算策略</strong>查指标 + 代码走读
               </button>
               <button type="button" class="hint-card" data-hint="根据报错日志定位接口 500 的根因，给出修复建议">
                 <strong>日志根因定位</strong>从日志反推故障源头
@@ -146,6 +153,6 @@
 
   <div id="toastStack" class="toast-stack"></div>
 
-  <script type="module" src="/static/app.js?v=4"></script>
+  <script type="module" src="/static/app.js?v=11"></script>
 </body>
 </html>

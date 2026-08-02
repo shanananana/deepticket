@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 220" role="img" aria-label="DeepTicket banner">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="55%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#312e81"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="220" rx="18" fill="url(#bg)"/>
+  <circle cx="820" cy="40" r="120" fill="#3b82f6" opacity="0.12"/>
+  <circle cx="140" cy="190" r="90" fill="#8b5cf6" opacity="0.14"/>
+  <g transform="translate(48,48)">
+    <rect width="72" height="72" rx="16" fill="url(#accent)"/>
+    <rect x="16" y="20" width="40" height="32" rx="6" fill="#ffffff" opacity="0.95"/>
+    <rect x="22" y="28" width="20" height="3" rx="1.5" fill="#cbd5e1"/>
+    <rect x="22" y="36" width="28" height="3" rx="1.5" fill="#e2e8f0"/>
+    <rect x="22" y="44" width="24" height="3" rx="1.5" fill="#e2e8f0"/>
+    <circle cx="54" cy="54" r="12" fill="#0f172a"/>
+    <path d="M48 54 L52 58 L60 48" stroke="#22c55e" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="140" y="88" fill="#ffffff" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="44" font-weight="700">DeepTicket</text>
+  <text x="142" y="126" fill="#cbd5e1" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="20">AI Agent platform for incident triage &amp; project Q&amp;A</text>
+  <text x="142" y="158" fill="#94a3b8" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="16">OpenHands · Git · Logs · Config · Ingress · Webhook</text>
+  <g transform="translate(700,132)">
+    <rect width="210" height="36" rx="18" fill="#ffffff" opacity="0.08" stroke="#64748b" stroke-width="1"/>
+    <text x="105" y="23" text-anchor="middle" fill="#e2e8f0" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">Source + Logs + Config</text>
+  </g>
+</svg>

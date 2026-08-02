@@ -66,6 +66,9 @@ def _sync_process_env(config: AppConfig) -> None:
     os.environ.setdefault("AGENT_SERVER_PORT", str(config.engine.agent_server_port))
     if config.engine.session_api_key:
         os.environ.setdefault("OH_SESSION_API_KEYS_0", config.engine.session_api_key)
+    if config.ingress.api_key:
+        os.environ.setdefault("INGRESS_API_KEY", config.ingress.api_key)
+    os.environ.setdefault("INGRESS_QUEUE_WORKERS", str(config.ingress.queue_workers))
 
 
 def load_yaml_config(path: Path) -> AppConfig:

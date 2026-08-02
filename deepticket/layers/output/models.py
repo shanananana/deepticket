@@ -9,3 +9,4 @@ class StreamChunk:
     conversation_id: str | None = None
     done: bool = False
     activity: str | None = None
+    activity_kind: str | None = None

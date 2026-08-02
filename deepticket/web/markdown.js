@@ -35,17 +35,58 @@ function highlight(escapedCode) {
   });
 }
 
-function renderInline(text) {
-  let out = escapeHtml(text);
+function stabilizeInlineMarkdown(text) {
+  let out = String(text);
+  if ((out.match(/\*\*/g) || []).length % 2 === 1) out += "**";
+  if ((out.match(/~~/g) || []).length % 2 === 1) out += "~~";
+  let ticks = 0;
+  for (let i = 0; i < out.length; i += 1) {
+    if (out[i] === "`") ticks += 1;
+  }
+  if (ticks % 2 === 1) out += "`";
+  return out;
+}
+
+function renderInline(text, streaming = false) {
+  const source = streaming ? stabilizeInlineMarkdown(text) : text;
+  let out = escapeHtml(source);
 
   out = out.replace(/`([^`]+)`/g, (_, code) => `<code class="md-code">${code}</code>`);
-  out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong class="md-key">$1</strong>');
   out = out.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
   out = out.replace(/~~([^~]+)~~/g, "<del>$1</del>");
   out = out.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
     '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
   );
+  return out;
+}
+
+const CALLOUT_RE = /^(?:\*\*)?(结论|根因|原因|建议|关键发现|核心结论|总结)(?:\*\*)?[：:]/;
+const KPI_RE = /(\b(?:ROI|消耗|花费|转化|预算|CTR|CVR|CPA|ROAS)\b[^<\d]{0,6})(\d+(?:\.\d+)?%?)/gi;
+
+function highlightMetrics(html) {
+  return html.replace(KPI_RE, (_m, label, value) => `${label}<span class="md-kpi">${value}</span>`);
+}
+
+function emphasizeReply(html) {
+  let out = highlightMetrics(html);
+
+  out = out.replace(/<p>([\s\S]*?)<\/p>/g, (match, inner) => {
+    const plain = inner.replace(/<[^>]+>/g, "");
+    if (CALLOUT_RE.test(plain)) {
+      return `<p class="md-callout">${inner}</p>`;
+    }
+    if (/^(?:\*\*)?(?:综上|总的来说|一句话)/.test(plain)) {
+      return `<p class="md-lead">${inner}</p>`;
+    }
+    return match;
+  });
+
+  out = out.replace(/<h[34] class="md-h">([^<]*(?:结论|根因|建议|关键发现)[^<]*)<\/h[34]>/g, (match) =>
+    match.replace('class="md-h"', 'class="md-h md-callout-heading"')
+  );
+
   return out;
 }
 
@@ -68,20 +109,33 @@ function renderTable(rows) {
   return `<div class="md-table-wrap"><table class="md-table">${thead}${tbody}</table></div>`;
 }
 
+function renderStreamingFence(lang, lines) {
+  const raw = lines.join("\n");
+  return (
+    `<div class="md-pre md-pre-streaming">` +
+    `<div class="md-pre-bar"><span class="md-pre-lang">${escapeHtml(lang || "code")}</span></div>` +
+    `<pre><code>${highlight(escapeHtml(raw))}</code></pre></div>`
+  );
+}
+
 function isTableDivider(line) {
   return /^\s*\|?[\s:-]*-[-\s:|]*\|?\s*$/.test(line) && line.includes("-");
 }
 
-export function renderMarkdown(source) {
+export function renderMarkdown(source, options = {}) {
+  const streaming = Boolean(options.streaming);
   const lines = String(source || "").split("\n");
   const html = [];
 
   let listType = null;
   let paragraph = [];
+  let inFence = false;
+  let fenceLang = "";
+  let fenceBuffer = [];
 
   const flushParagraph = () => {
     if (!paragraph.length) return;
-    html.push(`<p>${renderInline(paragraph.join(" "))}</p>`);
+    html.push(`<p>${renderInline(paragraph.join(" "), streaming)}</p>`);
     paragraph = [];
   };
 
@@ -92,27 +146,42 @@ export function renderMarkdown(source) {
     }
   };
 
+  const flushOpenFence = () => {
+    if (!inFence) return;
+    html.push(renderStreamingFence(fenceLang, fenceBuffer));
+    inFence = false;
+    fenceLang = "";
+    fenceBuffer = [];
+  };
+
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
 
     const fence = line.match(/^\s*```(\w*)\s*$/);
     if (fence) {
+      if (inFence) {
+        const raw = fenceBuffer.join("\n");
+        html.push(
+          `<div class="md-pre" data-code="${escapeHtml(raw)}">` +
+            `<div class="md-pre-bar"><span class="md-pre-lang">${escapeHtml(fenceLang || "code")}</span>` +
+            `<button type="button" class="md-copy" title="复制代码">复制</button></div>` +
+            `<pre><code>${highlight(escapeHtml(raw))}</code></pre></div>`
+        );
+        inFence = false;
+        fenceLang = "";
+        fenceBuffer = [];
+        continue;
+      }
       flushParagraph();
       closeList();
-      const lang = fence[1] || "";
-      const buffer = [];
-      i += 1;
-      while (i < lines.length && !/^\s*```\s*$/.test(lines[i])) {
-        buffer.push(lines[i]);
-        i += 1;
-      }
-      const raw = buffer.join("\n");
-      html.push(
-        `<div class="md-pre" data-code="${escapeHtml(raw)}">` +
-          `<div class="md-pre-bar"><span class="md-pre-lang">${escapeHtml(lang || "code")}</span>` +
-          `<button type="button" class="md-copy" title="复制代码">复制</button></div>` +
-          `<pre><code>${highlight(escapeHtml(raw))}</code></pre></div>`
-      );
+      inFence = true;
+      fenceLang = fence[1] || "";
+      fenceBuffer = [];
+      continue;
+    }
+
+    if (inFence) {
+      fenceBuffer.push(line);
       continue;
     }
 
@@ -145,7 +214,7 @@ export function renderMarkdown(source) {
       flushParagraph();
       closeList();
       const level = Math.min(heading[1].length + 2, 6);
-      html.push(`<h${level} class="md-h">${renderInline(heading[2])}</h${level}>`);
+      html.push(`<h${level} class="md-h">${renderInline(heading[2], streaming)}</h${level}>`);
       continue;
     }
 
@@ -160,7 +229,7 @@ export function renderMarkdown(source) {
     if (quote) {
       flushParagraph();
       closeList();
-      html.push(`<blockquote class="md-quote">${renderInline(quote[1])}</blockquote>`);
+      html.push(`<blockquote class="md-quote">${renderInline(quote[1], streaming)}</blockquote>`);
       continue;
     }
 
@@ -174,7 +243,7 @@ export function renderMarkdown(source) {
         html.push(wanted === "ul" ? '<ul class="md-list">' : '<ol class="md-list">');
         listType = wanted;
       }
-      html.push(`<li>${renderInline((bullet || ordered)[1])}</li>`);
+      html.push(`<li>${renderInline((bullet || ordered)[1], streaming)}</li>`);
       continue;
     }
 
@@ -184,7 +253,8 @@ export function renderMarkdown(source) {
 
   flushParagraph();
   closeList();
-  return html.join("");
+  if (streaming && inFence) flushOpenFence();
+  return emphasizeReply(html.join(""));
 }
 
 export { escapeHtml };

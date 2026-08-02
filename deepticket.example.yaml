@@ -45,6 +45,12 @@ knowledge:
       key: ghp_your_github_token_here
       branch: main
       workspace_subdir: my-github-service
+    # 本地 ad_agent 演示（file:// 指向 workspace/knowledge 下已 init 的 git 仓库）:
+    # - id: ad-agent
+    #   url: file:///ABS/PATH/deepticket/workspace/knowledge/ad-agent
+    #   key: ""
+    #   branch: main
+    #   workspace_subdir: ad-agent
     # - id: my-gitlab-service
     #   url: https://gitlab.com/your-group/your-project.git
     #   key: glpat-your_gitlab_token_here
@@ -57,6 +63,8 @@ extensions:
   workspace_skills_dir: workspace/project/.openhands/skills
 
 ingress:
+  api_key: ""                                # 留空时 setup.sh 自动生成
+  queue_workers: 1                            # 异步队列 worker 数
   routes:
     - type: incident
       description: 监控/告警类故障

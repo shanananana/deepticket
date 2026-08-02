@@ -14,6 +14,8 @@ from fastapi.testclient import TestClient
 from deepticket.core.app_factory import create_app
 from deepticket.layers.output.models import StreamChunk
 from deepticket.service import DeepTicketService
+from tests.conftest import INGRESS_AUTH_HEADERS
+from tests.test_ingress_api import _wait_for_job
 
 
 class _WebhookHandler(BaseHTTPRequestHandler):
@@ -46,6 +48,7 @@ def _write_test_config(path: Path, *, webhook_url: str) -> None:
     example = Path("deepticket.example.yaml")
     data = yaml.safe_load(example.read_text(encoding="utf-8"))
     data["llm"]["api_key"] = "test-api-key"
+    data["ingress"]["api_key"] = "test-ingress-key"
     for route in data["ingress"]["routes"]:
         if route.get("type") == "ticket":
             route["outbound"]["url"] = webhook_url
@@ -87,6 +90,7 @@ def test_ingress_ticket_webhook_roundtrip(
     caplog.set_level(logging.INFO)
     resp = ingress_client.post(
         "/api/ingress/events",
+        headers=INGRESS_AUTH_HEADERS,
         json={
             "source": "jira",
             "external_id": "T-9001",
@@ -95,8 +99,10 @@ def test_ingress_ticket_webhook_roundtrip(
             "type": "ticket",
         },
     )
-    assert resp.status_code == 200, resp.text
-    data = resp.json()
+    assert resp.status_code == 202, resp.text
+    queued = resp.json()
+    assert queued["status"] == "queued"
+    data = _wait_for_job(ingress_client, queued["job_id"])
     assert data["route_type"] == "ticket"
     assert data["outbound_method"] == "webhook"
     assert data["outbound_ok"] is True
@@ -110,12 +116,16 @@ def test_ingress_ticket_webhook_roundtrip(
     assert callback["reply"]
 
     messages = [record.getMessage() for record in caplog.records]
-    assert any("Ingress 收到事件" in msg for msg in messages)
+    assert any("Ingress 任务入队" in msg for msg in messages)
+    assert any("Ingress 开始处理" in msg for msg in messages)
     assert any("Ingress 任务完成" in msg for msg in messages)
     assert any("Webhook 投递请求" in msg for msg in messages)
     assert any("Webhook 响应成功" in msg for msg in messages)
 
     job_id = data["job_id"]
-    fetched = ingress_client.get(f"/api/ingress/jobs/{job_id}")
+    fetched = ingress_client.get(
+        f"/api/ingress/jobs/{job_id}",
+        headers=INGRESS_AUTH_HEADERS,
+    )
     assert fetched.status_code == 200
     assert fetched.json()["job_id"] == job_id

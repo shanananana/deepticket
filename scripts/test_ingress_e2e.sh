@@ -9,15 +9,23 @@ if [[ ! -x .venv/bin/python ]]; then
   exit 1
 fi
 
-WEB_PORT="$(.venv/bin/python - <<'PY'
+read -r WEB_PORT INGRESS_KEY <<EOF
+$(.venv/bin/python - <<'PY'
 from deepticket.config.loader import load_app_config
 from deepticket.paths import PROJECT_ROOT
-print(load_app_config(PROJECT_ROOT).web.port)
+c = load_app_config(PROJECT_ROOT)
+print(c.web.port, c.ingress.api_key)
 PY
-)"
+)
+EOF
 
 WEB="${WEB_PORT:-8600}"
 BASE="http://127.0.0.1:${WEB}"
+
+if [[ -z "$INGRESS_KEY" ]]; then
+  echo "deepticket.yaml 中 ingress.api_key 为空，请先运行 setup.sh 或手动配置" >&2
+  exit 1
+fi
 
 WH_PORT="${TEST_WEBHOOK_PORT:-8765}"
 WH_FILE=$(mktemp)
@@ -54,15 +62,22 @@ echo "  http://127.0.0.1:${WH_PORT}/callback"
 echo "然后重启 DeepTicket，再运行本脚本。"
 echo ""
 
-ROUTES_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${BASE}/api/ingress/routes" || true)
+ROUTES_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+  -H "X-Ingress-API-Key: ${INGRESS_KEY}" \
+  "${BASE}/api/ingress/routes" || true)
 if [[ "$ROUTES_CODE" == "404" ]]; then
   echo "Ingress API 不存在 (404)。请用最新代码重启: bash scripts/start_all.sh" >&2
   exit 1
 fi
+if [[ "$ROUTES_CODE" == "401" ]]; then
+  echo "Ingress API 鉴权失败 (401)。请检查 deepticket.yaml ingress.api_key" >&2
+  exit 1
+fi
 
-echo "== 推送工单 =="
+echo "== 推送工单（异步 202，轮询 job） =="
 RESP=$(curl -s -w '\nHTTP_CODE:%{http_code}' -X POST "${BASE}/api/ingress/events" \
   -H "Content-Type: application/json" \
+  -H "X-Ingress-API-Key: ${INGRESS_KEY}" \
   -d '{
     "source": "jira",
     "external_id": "DEMO-1001",
@@ -74,6 +89,21 @@ HTTP_CODE="${RESP##*HTTP_CODE:}"
 BODY="${RESP%HTTP_CODE:*}"
 echo "$BODY" | python3 -m json.tool 2>/dev/null || echo "$BODY"
 echo "HTTP $HTTP_CODE"
+
+JOB_ID="$(echo "$BODY" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("job_id",""))' 2>/dev/null || true)"
+if [[ -n "$JOB_ID" && "$HTTP_CODE" == "202" ]]; then
+  echo "== 轮询任务 $JOB_ID =="
+  for _ in $(seq 1 120); do
+    JOB_RESP=$(curl -sf -H "X-Ingress-API-Key: ${INGRESS_KEY}" \
+      "${BASE}/api/ingress/jobs/${JOB_ID}" || true)
+    STATUS="$(echo "$JOB_RESP" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' 2>/dev/null || true)"
+    if [[ "$STATUS" == "finished" || "$STATUS" == "failed" ]]; then
+      echo "$JOB_RESP" | python3 -m json.tool
+      break
+    fi
+    sleep 1
+  done
+fi
 
 if [[ -s "$WH_FILE" ]]; then
   echo "== Webhook 回调 body =="

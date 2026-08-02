@@ -13,10 +13,15 @@ def _is_gitlab_host(hostname: str) -> bool:
 def build_authenticated_git_url(repo: GitRepoConfig) -> str:
     """用 key 拼出可 clone 的只读 Git 地址。
 
+    - file:// 本地仓库：直接返回 url（无需 key）
     - GitHub 等：token 作为用户名（https://{token}@host/path）
     - GitLab（含自建 *.gitlab.com / gitlab.*）：oauth2:{token}@
     - 自建特殊格式：配置 url_template，如 https://oauth2:{key}@gitlab.corp.com/...
     """
+    parsed = urlparse(repo.url)
+    if parsed.scheme == "file":
+        return repo.url
+
     key = repo.key.strip()
     if not key:
         raise ValueError(f"Git 仓库 {repo.id} 缺少 key")
@@ -24,9 +29,8 @@ def build_authenticated_git_url(repo: GitRepoConfig) -> str:
     if repo.url_template:
         return repo.url_template.replace("{key}", key)
 
-    parsed = urlparse(repo.url)
     if parsed.scheme not in ("http", "https"):
-        raise ValueError(f"Git 仓库 {repo.id} 仅支持 http/https URL")
+        raise ValueError(f"Git 仓库 {repo.id} 仅支持 http/https 或 file URL")
 
     hostname = parsed.hostname or ""
     if parsed.port:

@@ -159,6 +159,7 @@ async def check_mcp_agent_sync() -> CheckResult:
         llm_model=os.environ.get("LLM_MODEL", "openai/deepseek-v4-flash"),
         llm_api_key=os.environ.get("LLM_API_KEY", "verify-placeholder"),
         llm_base_url=os.environ.get("LLM_BASE_URL", "https://api.deepseek.com/v1"),
+        workspace_dir=PROJECT_ROOT / "workspace" / "project",
     )
 
     probe_name = "deepticket-sync-probe"

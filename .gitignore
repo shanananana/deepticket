@@ -39,3 +39,9 @@ data/
 secrets/
 *.pem
 *.key
+
+# 本地 Demo 素材（勿提交仓库）
+demo/
+scripts/demo/
+docs/demo-ad-agent.md
+tests/test_ad_roi_demo.py

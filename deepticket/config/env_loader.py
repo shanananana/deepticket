@@ -84,5 +84,8 @@ def load_app_config_from_env() -> AppConfig:
                 "WORKSPACE_SKILLS_DIR", str(DEFAULT_WORKSPACE_SKILLS_DIR)
             ),
         ),
-        ingress=IngressSettings(),
+        ingress=IngressSettings(
+            api_key=_env("INGRESS_API_KEY"),
+            queue_workers=_env_int("INGRESS_QUEUE_WORKERS", 1),
+        ),
     )

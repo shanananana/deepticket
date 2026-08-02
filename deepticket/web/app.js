@@ -1,6 +1,22 @@
-import { renderMarkdown } from "/static/markdown.js";
+import { renderMarkdown } from "/static/markdown.js?v=10";
 
 const TOKEN_KEY = "deepticket_token";
+const RECORD_MODE_KEY = "deepticket_record_mode";
+
+const ACTIVITY_ICONS = {
+  log: "📋",
+  config: "⚙️",
+  code: "📁",
+  skill: "🧩",
+  search: "🔍",
+  terminal: "⌨️",
+  think: "💡",
+  evidence: "🔎",
+  handoff: "✓",
+  error: "⚠️",
+  system: "◆",
+  default: "•",
+};
 
 const ICONS = {
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>',
@@ -35,6 +51,7 @@ const searchInput = $("searchInput");
 const syncKnowledgeBtn = $("syncKnowledgeBtn");
 const ticketTemplateBtn = $("ticketTemplateBtn");
 const reloadSkillsBtn = $("reloadSkillsBtn");
+const recordModeBtn = $("recordModeBtn");
 const logoutBtn = $("logoutBtn");
 const settingsBtn = $("settingsBtn");
 const settingsMenu = $("settingsMenu");
@@ -53,6 +70,15 @@ let agentConversationId = null;
 let busy = false;
 let chatAbortController = null;
 let allChats = [];
+let recordMode = localStorage.getItem(RECORD_MODE_KEY) === "1";
+
+function syncRecordModeUi() {
+  if (!recordModeBtn) return;
+  recordModeBtn.classList.toggle("active", recordMode);
+  recordModeBtn.setAttribute("aria-pressed", recordMode ? "true" : "false");
+}
+
+syncRecordModeUi();
 
 if (!authToken) window.location.replace("/");
 
@@ -218,11 +244,11 @@ function addToolbar(body, rawText) {
   body.appendChild(bar);
 }
 
-function createAssistantShell(withThinking) {
+function createAssistantShell(withThinking, options = {}) {
   const { row, body, content } = createMessageRow("assistant");
   let thinking = null;
   if (withThinking) {
-    thinking = createThinkingBlock();
+    thinking = createThinkingBlock(options);
     body.insertBefore(thinking.root, content);
     scrollToBottom();
   }
@@ -247,9 +273,11 @@ function bindCodeCopy(container) {
 }
 
 /* Thinking 块 — 展示 Agent 实时活动（来自 SSE activity 事件） */
-function createThinkingBlock() {
+function createThinkingBlock(options = {}) {
+  const keepExpanded = Boolean(options.recordMode);
   const root = document.createElement("div");
   root.className = "thinking active";
+  if (keepExpanded) root.classList.add("record-mode");
   root.innerHTML = `
     <button type="button" class="thinking-toggle">
       <span class="thinking-spinner"></span>
@@ -270,25 +298,30 @@ function createThinkingBlock() {
   const labelEl = root.querySelector(".thinking-label");
   const activities = [];
   let currentActivity = "";
+  let currentKind = "default";
 
   toggle.addEventListener("click", () => root.classList.toggle("collapsed"));
+
+  const iconFor = (kind) => ACTIVITY_ICONS[kind] || ACTIVITY_ICONS.default;
 
   const renderSteps = () => {
     stepsEl.innerHTML = "";
     if (!activities.length) {
       const empty = document.createElement("div");
       empty.className = "thinking-step current";
-      empty.innerHTML = `<span class="step-dot"></span><span>等待 Agent 响应…</span>`;
+      empty.innerHTML = `<span class="step-icon">${iconFor("system")}</span><span>等待 Agent 响应…</span>`;
       stepsEl.appendChild(empty);
       return;
     }
-    activities.forEach((text, idx) => {
+    activities.forEach((item, idx) => {
       const step = document.createElement("div");
       step.className = "thinking-step";
       const isLast = idx === activities.length - 1;
+      if (item.kind === "evidence") step.classList.add("evidence");
+      if (item.kind === "handoff") step.classList.add("handoff");
       if (isLast) step.classList.add("current");
       else step.classList.add("done");
-      step.innerHTML = `<span class="step-dot"></span><span>${escapeHtml(text)}</span>`;
+      step.innerHTML = `<span class="step-icon">${iconFor(item.kind)}</span><span>${escapeHtml(item.text)}</span>`;
       stepsEl.appendChild(step);
     });
     scrollToBottom();
@@ -303,15 +336,20 @@ function createThinkingBlock() {
 
   return {
     root,
-    addActivity(text) {
+    addActivity(text, kind = "default") {
       const next = (text || "").trim();
-      if (!next || next === currentActivity) return;
+      if (!next || (next === currentActivity && kind === currentKind)) return;
       currentActivity = next;
-      if (activities[activities.length - 1] !== next) {
-        activities.push(next);
+      currentKind = kind;
+      const last = activities[activities.length - 1];
+      if (!last || last.text !== next || last.kind !== kind) {
+        activities.push({ text: next, kind });
       }
       labelEl.textContent = next;
       renderSteps();
+    },
+    markReplyStarting() {
+      this.addActivity("已获取到所有信息，开始回复", "handoff");
     },
     finish(contentStarted = false) {
       window.clearInterval(elapsedTimer);
@@ -333,7 +371,9 @@ function createThinkingBlock() {
           ? `已完成 · ${seconds}s`
           : `运行 ${seconds}s`;
       }
-      window.setTimeout(() => root.classList.add("collapsed"), contentStarted ? 500 : 900);
+      if (!keepExpanded) {
+        window.setTimeout(() => root.classList.add("collapsed"), contentStarted ? 2500 : 4000);
+      }
     },
     stop() {
       window.clearInterval(elapsedTimer);
@@ -555,9 +595,10 @@ async function sendMessage(text) {
   setStatus("正在思考…", "busy");
   addUserMessage(message);
 
-  const { body, content, thinking } = createAssistantShell(true);
+  const { body, content, thinking } = createAssistantShell(true, { recordMode });
   content.classList.add("placeholder");
   content.textContent = "等待 Agent 响应…";
+  thinking.addActivity("问题已提交，正在连接 Agent…", "system");
 
   chatAbortController = new AbortController();
   const { signal } = chatAbortController;
@@ -568,8 +609,9 @@ async function sendMessage(text) {
 
   const flushRender = () => {
     renderScheduled = false;
-    content.innerHTML = renderMarkdown(assistantText);
-    bindCodeCopy(content);
+    const streaming = content.classList.contains("streaming");
+    content.innerHTML = renderMarkdown(assistantText, { streaming });
+    if (!streaming) bindCodeCopy(content);
     scrollToBottom();
   };
 
@@ -634,7 +676,11 @@ async function sendMessage(text) {
           if (line) {
             try {
               const meta = JSON.parse(line.slice(6));
-              if (meta.activity) thinking.addActivity(meta.activity);
+              if (meta.activity) {
+                thinking.addActivity(meta.activity, meta.kind || "default");
+                scrollToBottom();
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+              }
             } catch { /* 忽略 */ }
           }
           continue;
@@ -668,6 +714,7 @@ async function sendMessage(text) {
               contentStarted = true;
               content.classList.remove("placeholder");
               content.classList.add("streaming");
+              thinking.markReplyStarting();
               thinking.finish(true);
               setStatus("输出中…", "busy");
             }
@@ -692,6 +739,8 @@ async function sendMessage(text) {
       content.classList.remove("placeholder");
       content.textContent = "Agent 已完成运行，但未返回文本（可能仅执行了工具）。";
     } else {
+      content.innerHTML = renderMarkdown(assistantText);
+      bindCodeCopy(content);
       addToolbar(body, assistantText);
     }
 
@@ -845,6 +894,15 @@ reloadSkillsBtn.addEventListener("click", async () => {
     toast(`重载失败: ${err.message}`, "error");
   }
 });
+
+if (recordModeBtn) {
+  recordModeBtn.addEventListener("click", () => {
+    recordMode = !recordMode;
+    localStorage.setItem(RECORD_MODE_KEY, recordMode ? "1" : "0");
+    syncRecordModeUi();
+    toast(recordMode ? "录屏模式已开启（Thinking 保持展开）" : "录屏模式已关闭", "info");
+  });
+}
 
 ticketTemplateBtn.addEventListener("click", () => {
   settingsMenu.classList.add("hidden");

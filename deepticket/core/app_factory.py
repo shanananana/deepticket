@@ -31,8 +31,10 @@ async def lifespan(app: FastAPI):
     app.state.deepticket = AppState(service=service, llm=llm)
     logger.info("DeepTicket 启动中…")
     await service.startup()
+    await service.start_ingress_workers()
     logger.info("DeepTicket 就绪")
     yield
+    await service.stop_ingress_workers()
 
 
 def create_app() -> FastAPI:

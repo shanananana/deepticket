@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 360" role="img" aria-label="DeepTicket architecture">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/>
+    </marker>
+    <style>
+      .box { fill:#f8fafc; stroke:#cbd5e1; stroke-width:1.5; }
+      .title { font: 700 15px ui-sans-serif, system-ui, sans-serif; fill:#0f172a; }
+      .sub { font: 12px ui-sans-serif, system-ui, sans-serif; fill:#475569; }
+      .lane { font: 700 13px ui-sans-serif, system-ui, sans-serif; fill:#64748b; }
+    </style>
+  </defs>
+  <text x="20" y="28" class="lane">UPSTREAM</text>
+  <rect x="20" y="44" width="150" height="72" rx="10" class="box"/>
+  <text x="95" y="72" text-anchor="middle" class="title">Monitor / ITSM</text>
+  <text x="95" y="94" text-anchor="middle" class="sub">Jira · Alertmanager</text>
+
+  <text x="220" y="28" class="lane">DEEPTICKET (8600)</text>
+  <rect x="220" y="44" width="170" height="72" rx="10" class="box"/>
+  <text x="305" y="72" text-anchor="middle" class="title">Ingress API</text>
+  <text x="305" y="94" text-anchor="middle" class="sub">auth · queue · routes</text>
+
+  <rect x="220" y="140" width="170" height="72" rx="10" class="box"/>
+  <text x="305" y="168" text-anchor="middle" class="title">Web Workbench</text>
+  <text x="305" y="190" text-anchor="middle" class="sub">chat · SSE · images</text>
+
+  <rect x="220" y="236" width="170" height="72" rx="10" class="box"/>
+  <text x="305" y="264" text-anchor="middle" class="title">Orchestrator</text>
+  <text x="305" y="286" text-anchor="middle" class="sub">service.py layers</text>
+
+  <text x="440" y="28" class="lane">ENGINE (8100, internal)</text>
+  <rect x="440" y="120" width="180" height="92" rx="10" class="box"/>
+  <text x="530" y="154" text-anchor="middle" class="title">OpenHands Agent Server</text>
+  <text x="530" y="176" text-anchor="middle" class="sub">read code · tools · MCP</text>
+  <text x="530" y="196" text-anchor="middle" class="sub">127.0.0.1 only in prod</text>
+
+  <text x="670" y="28" class="lane">KNOWLEDGE &amp; TOOLS</text>
+  <rect x="670" y="44" width="220" height="56" rx="10" class="box"/>
+  <text x="780" y="78" text-anchor="middle" class="title">Git repos (read-only)</text>
+
+  <rect x="670" y="116" width="220" height="56" rx="10" class="box"/>
+  <text x="780" y="150" text-anchor="middle" class="title">log-query / config-query Skill</text>
+
+  <rect x="670" y="188" width="220" height="56" rx="10" class="box"/>
+  <text x="780" y="222" text-anchor="middle" class="title">MCP servers</text>
+
+  <rect x="670" y="260" width="220" height="56" rx="10" class="box"/>
+  <text x="780" y="294" text-anchor="middle" class="title">Redis / local storage</text>
+
+  <line x1="170" y1="80" x2="220" y2="80" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="390" y1="80" x2="440" y2="150" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="390" y1="176" x2="440" y2="166" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="390" y1="272" x2="440" y2="182" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="620" y1="166" x2="670" y2="72" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="620" y1="170" x2="670" y2="144" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="620" y1="174" x2="670" y2="216" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="620" y1="178" x2="670" y2="288" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="440" y="260" width="180" height="72" rx="10" class="box"/>
+  <text x="530" y="288" text-anchor="middle" class="title">Outbound</text>
+  <text x="530" y="310" text-anchor="middle" class="sub">webhook · store_only</text>
+  <line x1="530" y1="212" x2="530" y2="260" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="440" y1="296" x2="170" y2="296" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="95" y="320" text-anchor="middle" class="sub">ticket updated</text>
+</svg>

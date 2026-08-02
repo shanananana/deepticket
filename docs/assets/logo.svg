@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="DeepTicket logo">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#g)"/>
+  <rect x="28" y="34" width="72" height="52" rx="8" fill="#ffffff" opacity="0.95"/>
+  <rect x="36" y="44" width="36" height="4" rx="2" fill="#cbd5e1"/>
+  <rect x="36" y="54" width="52" height="4" rx="2" fill="#e2e8f0"/>
+  <rect x="36" y="64" width="44" height="4" rx="2" fill="#e2e8f0"/>
+  <circle cx="88" cy="88" r="22" fill="#0f172a"/>
+  <path d="M80 88 L86 94 L98 80" stroke="#22c55e" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

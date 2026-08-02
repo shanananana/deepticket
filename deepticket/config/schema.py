@@ -170,12 +170,25 @@ class ExtensionsConfig(BaseModel):
 
 
 class IngressSettings(BaseModel):
-    """外部系统接入（Ingress）：监控、Jira、ITSM 等 POST /api/ingress/events，无需 Web 登录。
+    """外部系统接入（Ingress）：监控、Jira、ITSM 等 POST /api/ingress/events。
 
-    事件经 routes 分类 → Agent 分析 → 按 outbound 存库或 Webhook 回写。
-    上游需将告警/工单转为统一 JSON（见 README「Ingress 事件」字段表）。
+    需携带 ingress.api_key（X-Ingress-API-Key 或 Bearer）。事件异步入队处理，
+    POST 立即返回 202 + job_id，用 GET /api/ingress/jobs/{job_id} 轮询结果。
     """
 
+    api_key: str = Field(
+        default="",
+        description=(
+            "Ingress API 密钥；请求头 X-Ingress-API-Key 或 Authorization: Bearer。"
+            "留空时 setup.sh 自动生成"
+        ),
+    )
+    queue_workers: int = Field(
+        default=1,
+        ge=1,
+        le=16,
+        description="Ingress 异步队列 worker 数量；单进程内并发处理任务数",
+    )
     routes: list[RouteConfig] = Field(
         default_factory=list,
         description=(

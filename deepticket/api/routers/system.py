@@ -31,6 +31,10 @@ async def health(request: Request) -> dict:
         "storage": service.get_storage_info(),
         "knowledge_repos": service.list_git_repos(),
         "extensions": service.get_extensions_info(),
+        "ingress": {
+            "auth": bool(service.config.ingress.api_key.strip()),
+            "queue": service.get_ingress_queue_info(),
+        },
     }
 
 

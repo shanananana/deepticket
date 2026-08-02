@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 200" role="img" aria-label="DeepTicket demo flow">
+  <defs>
+    <linearGradient id="step" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#dbeafe"/>
+      <stop offset="100%" stop-color="#ede9fe"/>
+    </linearGradient>
+    <style>
+      .n { font: 700 22px ui-sans-serif, system-ui, sans-serif; fill:#1d4ed8; }
+      .t { font: 700 16px ui-sans-serif, system-ui, sans-serif; fill:#0f172a; }
+      .d { font: 13px ui-sans-serif, system-ui, sans-serif; fill:#475569; }
+    </style>
+  </defs>
+  <rect width="960" height="200" rx="16" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="24" y="34" class="d">Demo flow (replace with docs/assets/demo.gif after recording)</text>
+  <g transform="translate(24,52)">
+    <rect width="200" height="120" rx="12" fill="url(#step)" stroke="#bfdbfe"/>
+    <text x="20" y="34" class="n">1</text>
+    <text x="20" y="62" class="t">Push ticket</text>
+    <text x="20" y="86" class="d">Ingress 202 + job_id</text>
+    <text x="20" y="106" class="d">or Web chat</text>
+  </g>
+  <text x="244" y="118" font-size="28" fill="#94a3b8">→</text>
+  <g transform="translate(280,52)">
+    <rect width="200" height="120" rx="12" fill="url(#step)" stroke="#bfdbfe"/>
+    <text x="20" y="34" class="n">2</text>
+    <text x="20" y="62" class="t">Agent reads repo</text>
+    <text x="20" y="86" class="d">workspace/project</text>
+    <text x="20" y="106" class="d">+ Skills / MCP</text>
+  </g>
+  <text x="500" y="118" font-size="28" fill="#94a3b8">→</text>
+  <g transform="translate(536,52)">
+    <rect width="200" height="120" rx="12" fill="url(#step)" stroke="#bfdbfe"/>
+    <text x="20" y="34" class="n">3</text>
+    <text x="20" y="62" class="t">Root cause reply</text>
+    <text x="20" y="86" class="d">SSE in workbench</text>
+    <text x="20" y="106" class="d">Webhook outbound</text>
+  </g>
+  <text x="756" y="118" font-size="28" fill="#94a3b8">→</text>
+  <g transform="translate(792,52)">
+    <rect width="144" height="120" rx="12" fill="url(#step)" stroke="#bfdbfe"/>
+    <text x="20" y="34" class="n">4</text>
+    <text x="20" y="62" class="t">Close loop</text>
+    <text x="20" y="86" class="d">ITSM ticket</text>
+    <text x="20" y="106" class="d">updated</text>
+  </g>
+</svg>

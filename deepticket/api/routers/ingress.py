@@ -2,26 +2,38 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from deepticket.api.deps import get_service
 from deepticket.api.schemas import (
     IngressEventRequest,
     IngressJobResponse,
 )
+from deepticket.auth.ingress_auth import verify_ingress_api_key
 from deepticket.layers.input.ingress_models import IngressEvent
 
 router = APIRouter(prefix="/api/ingress", tags=["Ingress"])
 
 
 @router.get("/routes")
-async def list_routes(request: Request) -> dict:
+async def list_routes(
+    request: Request,
+    _: None = Depends(verify_ingress_api_key),
+) -> dict:
     service = get_service(request)
     return {"routes": service.list_routes()}
 
 
-@router.post("/events", response_model=IngressJobResponse)
-async def ingest_event(body: IngressEventRequest, request: Request) -> IngressJobResponse:
+@router.post(
+    "/events",
+    response_model=IngressJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def ingest_event(
+    body: IngressEventRequest,
+    request: Request,
+    _: None = Depends(verify_ingress_api_key),
+) -> IngressJobResponse:
     service = get_service(request)
     event = IngressEvent(
         source=body.source,
@@ -35,16 +47,18 @@ async def ingest_event(body: IngressEventRequest, request: Request) -> IngressJo
         metadata=dict(body.metadata),
     )
     try:
-        result = await service.run_ingress_event(event)
+        result = await service.submit_ingress_event(event)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return IngressJobResponse(**asdict(result))
 
 
 @router.get("/jobs/{job_id}", response_model=IngressJobResponse)
-async def get_job(job_id: str, request: Request) -> IngressJobResponse:
+async def get_job(
+    job_id: str,
+    request: Request,
+    _: None = Depends(verify_ingress_api_key),
+) -> IngressJobResponse:
     service = get_service(request)
     doc = service.get_ingress_job(job_id)
     if doc is None:

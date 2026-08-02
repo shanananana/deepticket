@@ -13,6 +13,7 @@ from deepticket.config.routing_schema import RoutingConfig
 from deepticket.config.schema import AppConfig
 from deepticket.layers.engine.openhands_engine import OpenHandsEngine
 from deepticket.layers.ingress.pipeline import IngressJobResult, collect_stream_text
+from deepticket.layers.ingress.queue import IngressJobQueue, IngressQueueItem
 from deepticket.layers.input.adapter import InputAdapter
 from deepticket.layers.input.classifier import classify_ingress_event
 from deepticket.layers.input.ingress_adapter import IngressAdapter
@@ -70,8 +71,10 @@ class DeepTicketService:
             llm_model=llm_model,
             llm_api_key=llm_api_key,
             llm_base_url=llm_base_url,
+            workspace_dir=self._resolve_path(config.knowledge.workspace_dir),
         )
         self.routing = RoutingConfig(routes=list(config.ingress.routes))
+        self._ingress_queue = IngressJobQueue(workers=config.ingress.queue_workers)
 
     @staticmethod
     def _resolve_path(raw: str) -> Path:
@@ -135,27 +138,95 @@ class DeepTicketService:
     def get_ingress_job(self, job_id: str) -> dict | None:
         return self.storage.get_json(self.NAMESPACE_INGRESS, job_id)
 
-    async def run_ingress_event(self, event: IngressEvent) -> IngressJobResult:
-        """外部事件：分类 → Agent 分析 → 按类型出口投递。"""
+    def get_ingress_queue_info(self) -> dict[str, int]:
+        return {
+            "workers": self._ingress_queue.worker_count,
+            "pending": self._ingress_queue.qsize(),
+        }
+
+    async def start_ingress_workers(self) -> None:
+        await self._ingress_queue.start(self._process_ingress_queue_item)
+
+    async def stop_ingress_workers(self) -> None:
+        await self._ingress_queue.stop()
+
+    async def _process_ingress_queue_item(self, item: IngressQueueItem) -> None:
+        await self.run_ingress_event(item.event, job_id=item.job_id)
+
+    async def submit_ingress_event(self, event: IngressEvent) -> IngressJobResult:
+        """校验并入队；立即返回 queued 状态，由后台 worker 执行分析。"""
         route = classify_ingress_event(event, self.routing)
-        logger.info(
-            "Ingress 收到事件: source=%s external_id=%s route=%s",
-            event.source,
-            event.external_id,
-            route.type,
-        )
         ticket = IngressAdapter.to_ticket(event, route)
         job_id = uuid.uuid4().hex
 
-        running_doc = {
+        queued_doc = {
             "job_id": job_id,
             "route_type": route.type,
             "source": event.source,
             "external_id": event.external_id,
-            "status": "running",
+            "status": "queued",
+            "reply": "",
+            "conversation_id": None,
+            "outbound_method": route.outbound.method,
+            "outbound_ok": False,
+            "outbound_detail": "已入队，等待处理",
             "metadata": ticket.metadata,
         }
-        self.storage.set_json(self.NAMESPACE_INGRESS, job_id, running_doc)
+        self.storage.set_json(self.NAMESPACE_INGRESS, job_id, queued_doc)
+        await self._ingress_queue.enqueue(
+            IngressQueueItem(job_id=job_id, event=event)
+        )
+        logger.info(
+            "Ingress 任务入队: job_id=%s source=%s external_id=%s route=%s queue=%s",
+            job_id,
+            event.source,
+            event.external_id,
+            route.type,
+            self._ingress_queue.qsize(),
+        )
+        return IngressJobResult(**queued_doc)
+
+    async def run_ingress_event(
+        self,
+        event: IngressEvent,
+        *,
+        job_id: str | None = None,
+    ) -> IngressJobResult:
+        """外部事件：分类 → Agent 分析 → 按类型出口投递。"""
+        route = classify_ingress_event(event, self.routing)
+        ticket = IngressAdapter.to_ticket(event, route)
+        if job_id is None:
+            job_id = uuid.uuid4().hex
+            running_doc = {
+                "job_id": job_id,
+                "route_type": route.type,
+                "source": event.source,
+                "external_id": event.external_id,
+                "status": "running",
+                "metadata": ticket.metadata,
+            }
+            self.storage.set_json(self.NAMESPACE_INGRESS, job_id, running_doc)
+        else:
+            existing = self.storage.get_json(self.NAMESPACE_INGRESS, job_id) or {}
+            existing.update(
+                {
+                    "job_id": job_id,
+                    "route_type": route.type,
+                    "source": event.source,
+                    "external_id": event.external_id,
+                    "status": "running",
+                    "metadata": ticket.metadata,
+                }
+            )
+            self.storage.set_json(self.NAMESPACE_INGRESS, job_id, existing)
+
+        logger.info(
+            "Ingress 开始处理: job_id=%s source=%s external_id=%s route=%s",
+            job_id,
+            event.source,
+            event.external_id,
+            route.type,
+        )
 
         reply = ""
         conversation_id: str | None = None
