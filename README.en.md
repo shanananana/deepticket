@@ -1,6 +1,8 @@
 <p align="center">
   <a href="README.md">中文</a>
   ·
+  <a href="CHANGELOG.en.md">Changelog</a>
+  ·
   <a href="https://github.com/shanananana/deepticket/stargazers">GitHub Stars</a>
   ·
   <a href="https://github.com/OpenHands/OpenHands">OpenHands</a>
