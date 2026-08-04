@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from collections.abc import AsyncIterator
+import httpx
 from dataclasses import asdict
 from pathlib import Path
 
-from deepticket.auth.user_store import UserStore
+from deepticket.auth.user_store import AuthUser, UserStore
 from deepticket.config.mcp_loader import filter_enabled_servers, validate_mcp_servers
 from deepticket.config.routing_schema import RoutingConfig
 from deepticket.config.schema import AppConfig
@@ -28,9 +30,12 @@ from deepticket.config.redis_url import redact_redis_url, resolve_redis_url
 from deepticket.layers.storage import create_storage
 from deepticket.layers.storage.base import StorageBackend
 from deepticket.layers.storage.chat_history import ChatHistoryStore
+from deepticket.layers.storage.token_usage import TokenUsageStore
+from deepticket.observability.metrics import get_metrics
 from deepticket.paths import resolve_from_project
 
 logger = logging.getLogger(__name__)
+_metrics = get_metrics()
 
 
 class DeepTicketService:
@@ -54,6 +59,7 @@ class DeepTicketService:
         self.storage: StorageBackend = create_storage(config.storage)
         self.users = UserStore(self.storage)
         self.chat_history = ChatHistoryStore(self.storage)
+        self.token_usage = TokenUsageStore(self.storage)
         self.knowledge = KnowledgeManager(config.knowledge)
         self.skills = SkillManager(
             skills_dir=self._resolve_path(config.extensions.skills_dir),
@@ -75,15 +81,22 @@ class DeepTicketService:
         )
         self.routing = RoutingConfig(routes=list(config.ingress.routes))
         self._ingress_queue = IngressJobQueue(workers=config.ingress.queue_workers)
+        _metrics.queue_backlog_alert = config.ingress.queue_backlog_alert
 
     @staticmethod
     def _resolve_path(raw: str) -> Path:
         return resolve_from_project(raw)
 
     async def startup(self) -> None:
-        bootstrap = self.users.ensure_bootstrap_user("admin", "admin")
+        bootstrap = self.users.ensure_bootstrap_user(
+            self.config.auth.bootstrap_username,
+            self.config.auth.bootstrap_password,
+        )
         if bootstrap:
-            logger.info("已创建默认账户: admin / admin")
+            logger.info(
+                "已创建默认账户: %s（请尽快修改密码）",
+                self.config.auth.bootstrap_username,
+            )
 
         await self.engine.ensure_ready()
         try:
@@ -135,17 +148,181 @@ class DeepTicketService:
             for route in self.routing.routes
         ]
 
+    def is_admin(self, user: AuthUser) -> bool:
+        admins = self.config.auth.admin_usernames
+        if not admins:
+            admins = [self.config.auth.bootstrap_username]
+        return user.username.lower() in {name.lower() for name in admins}
+
+    def list_recent_ingress_jobs(self, *, limit: int = 20) -> list[dict]:
+        keys = self.storage.list_keys(self.NAMESPACE_INGRESS)
+        jobs: list[dict] = []
+        for key in keys:
+            doc = self.storage.get_json(self.NAMESPACE_INGRESS, key)
+            if not doc:
+                continue
+            jobs.append(
+                {
+                    "job_id": doc.get("job_id", key),
+                    "status": doc.get("status", "unknown"),
+                    "source": doc.get("source", ""),
+                    "external_id": doc.get("external_id", ""),
+                    "route_type": doc.get("route_type", ""),
+                    "outbound_method": doc.get("outbound_method", ""),
+                    "outbound_ok": doc.get("outbound_ok"),
+                    "outbound_detail": (doc.get("outbound_detail") or "")[:120],
+                }
+            )
+        jobs.sort(key=lambda item: item["job_id"], reverse=True)
+        return jobs[:limit]
+
+    def list_admin_token_usage(self, *, run_limit: int = 50) -> dict:
+        def resolve_username(uid: str) -> str | None:
+            user = self.users.get_user(uid)
+            return user.username if user else None
+
+        conversations = self.token_usage.list_conversation_usage(
+            resolve_username=resolve_username
+        )
+        runs = self.token_usage.list_recent_runs(limit=run_limit)
+        return {
+            "summary": self.token_usage.summarize_conversations(conversations),
+            "conversations": conversations,
+            "runs": runs,
+        }
+
+    async def record_chat_token_usage(
+        self,
+        *,
+        uid: str,
+        chat_id: str,
+        agent_conversation_id: str,
+    ) -> None:
+        usage = await self.engine.fetch_conversation_token_usage(agent_conversation_id)
+        if not usage:
+            return
+
+        thread = self.chat_history.get_thread(uid, chat_id)
+        if thread is None:
+            return
+
+        user = self.users.get_user(uid)
+        username = user.username if user else uid[:8]
+        model = str(usage.get("model") or self.engine.llm_model or "").strip()
+        model_label = self.llm_label if model == self.engine.llm_model else model
+        prev = thread.get("token_usage") or {}
+        delta = {
+            "prompt_tokens": max(
+                0, int(usage["prompt_tokens"]) - int(prev.get("prompt_tokens") or 0)
+            ),
+            "completion_tokens": max(
+                0,
+                int(usage["completion_tokens"]) - int(prev.get("completion_tokens") or 0),
+            ),
+            "reasoning_tokens": max(
+                0,
+                int(usage["reasoning_tokens"]) - int(prev.get("reasoning_tokens") or 0),
+            ),
+            "total_tokens": max(
+                0, int(usage["total_tokens"]) - int(prev.get("total_tokens") or 0)
+            ),
+        }
+
+        self.chat_history.set_token_usage(
+            uid,
+            chat_id,
+            prompt_tokens=int(usage["prompt_tokens"]),
+            completion_tokens=int(usage["completion_tokens"]),
+            reasoning_tokens=int(usage["reasoning_tokens"]),
+            total_tokens=int(usage["total_tokens"]),
+            model=model,
+            model_label=model_label,
+        )
+
+        if delta["total_tokens"] <= 0 and not prev:
+            delta = {
+                "prompt_tokens": int(usage["prompt_tokens"]),
+                "completion_tokens": int(usage["completion_tokens"]),
+                "reasoning_tokens": int(usage["reasoning_tokens"]),
+                "total_tokens": int(usage["total_tokens"]),
+            }
+
+        if delta["total_tokens"] > 0:
+            self.token_usage.record_run(
+                uid=uid,
+                username=username,
+                chat_id=chat_id,
+                chat_title=thread.get("title") or "新会话",
+                agent_conversation_id=agent_conversation_id,
+                model=model,
+                model_label=model_label,
+                delta=delta,
+                cumulative=usage,
+            )
+
     def get_ingress_job(self, job_id: str) -> dict | None:
         return self.storage.get_json(self.NAMESPACE_INGRESS, job_id)
 
     def get_ingress_queue_info(self) -> dict[str, int]:
+        pending = self._ingress_queue.qsize()
+        _metrics.observe_queue_depth(pending)
         return {
             "workers": self._ingress_queue.worker_count,
-            "pending": self._ingress_queue.qsize(),
+            "pending": pending,
         }
 
+    def get_metrics_snapshot(self) -> dict:
+        return _metrics.snapshot(queue_pending=self._ingress_queue.qsize())
+
+    def get_public_health(self) -> dict[str, object]:
+        return {
+            "ok": True,
+            "project": "deepticket",
+            "version": "0.1.0",
+            "auth": True,
+            "register_enabled": self.config.auth.register_enabled,
+            "model_label": self.llm_label,
+            "storage_backend": self.config.storage.backend,
+            "ingress_queue_pending": self._ingress_queue.qsize(),
+        }
+
+    async def mark_ingress_job_failed(
+        self, job_id: str, *, error: str, event: IngressEvent | None = None
+    ) -> None:
+        existing = self.storage.get_json(self.NAMESPACE_INGRESS, job_id) or {}
+        doc = {
+            **existing,
+            "job_id": job_id,
+            "status": "failed",
+            "reply": existing.get("reply") or "",
+            "outbound_ok": False,
+            "outbound_detail": error[:500],
+            "metadata": {
+                **(existing.get("metadata") or {}),
+                "error": error,
+            },
+        }
+        if event is not None:
+            doc.setdefault("source", event.source)
+            doc.setdefault("external_id", event.external_id)
+        self.storage.set_json(self.NAMESPACE_INGRESS, job_id, doc)
+        _metrics.record_ingress_job(ok=False)
+        logger.error("Ingress 任务失败: job_id=%s error=%s", job_id, error)
+
+    async def _on_ingress_queue_failure(
+        self, item: IngressQueueItem, exc: BaseException
+    ) -> None:
+        await self.mark_ingress_job_failed(
+            item.job_id,
+            error=str(exc),
+            event=item.event,
+        )
+
     async def start_ingress_workers(self) -> None:
-        await self._ingress_queue.start(self._process_ingress_queue_item)
+        await self._ingress_queue.start(
+            self._process_ingress_queue_item,
+            on_failure=self._on_ingress_queue_failure,
+        )
 
     async def stop_ingress_workers(self) -> None:
         await self._ingress_queue.stop()
@@ -237,7 +414,7 @@ class DeepTicketService:
             reply, conversation_id = await collect_stream_text(
                 self.run_ticket_stream(ticket)
             )
-        except RuntimeError as exc:
+        except Exception as exc:
             status = "failed"
             error = str(exc)
             logger.error("Ingress 任务 Agent 失败 (%s): %s", job_id, exc)
@@ -282,6 +459,9 @@ class DeepTicketService:
             },
         )
         self.storage.set_json(self.NAMESPACE_INGRESS, job_id, asdict(result))
+        _metrics.record_ingress_job(ok=status == "finished")
+        if route.outbound.method == "webhook":
+            _metrics.record_webhook(ok=outbound_result.ok)
         return result
 
     async def run_chat_stream(
@@ -304,10 +484,18 @@ class DeepTicketService:
             )
 
         assistant_parts: list[str] = []
+        activity_log: list[dict[str, str]] = []
         agent_conversation_id = agent_input.conversation_id
         async for chunk in self._run_stream(agent_input):
             if chunk.conversation_id:
                 agent_conversation_id = chunk.conversation_id
+            if chunk.activity:
+                activity_log.append(
+                    {
+                        "text": chunk.activity,
+                        "kind": chunk.activity_kind or "default",
+                    }
+                )
             if chunk.delta:
                 assistant_parts.append(chunk.delta)
             yield chunk
@@ -320,11 +508,23 @@ class DeepTicketService:
                     role="assistant",
                     content="".join(assistant_parts),
                     agent_conversation_id=agent_conversation_id,
+                    activities=activity_log or None,
                 )
             elif agent_conversation_id:
                 self.chat_history.set_agent_conversation_id(
                     uid, chat_id, agent_conversation_id
                 )
+            if agent_conversation_id:
+                try:
+                    await self.record_chat_token_usage(
+                        uid=uid,
+                        chat_id=chat_id,
+                        agent_conversation_id=agent_conversation_id,
+                    )
+                except httpx.HTTPError as exc:
+                    logger.warning("记录 token 用量失败: %s", exc)
+                except RuntimeError as exc:
+                    logger.warning("记录 token 用量失败: %s", exc)
 
     async def run_ticket_stream(self, payload: TicketInput) -> AsyncIterator[StreamChunk]:
         agent_input = InputAdapter.from_ticket(payload)
@@ -344,13 +544,26 @@ class DeepTicketService:
     async def _run_stream(self, agent_input: AgentInput) -> AsyncIterator[StreamChunk]:
         conversation_id = agent_input.conversation_id
         text_parts: list[str] = []
-
-        async for chunk in self.engine.stream(agent_input):
-            if chunk.conversation_id and not conversation_id:
-                conversation_id = chunk.conversation_id
-            if chunk.delta:
-                text_parts.append(chunk.delta)
-            yield chunk
+        started = time.monotonic()
+        ok = True
+        _metrics.agent_run_started()
+        try:
+            async for chunk in self.engine.stream(agent_input):
+                if chunk.conversation_id and not conversation_id:
+                    conversation_id = chunk.conversation_id
+                if chunk.delta:
+                    text_parts.append(chunk.delta)
+                yield chunk
+        except Exception:
+            ok = False
+            raise
+        finally:
+            duration_ms = int((time.monotonic() - started) * 1000)
+            _metrics.agent_run_finished(
+                duration_ms=duration_ms,
+                ok=ok,
+                tokens_estimated=0,
+            )
 
         if conversation_id:
             self.storage.set_json(
@@ -377,12 +590,15 @@ class DeepTicketService:
                 existing,
             )
 
-    def get_storage_info(self) -> dict[str, str | list[str]]:
+    def get_storage_info(self) -> dict[str, str | int]:
         backend = self.config.storage.backend
-        info: dict[str, str | list[str]] = {
+        info: dict[str, str | int] = {
             "backend": backend,
-            "conversation_keys": self.storage.list_keys(self.NAMESPACE_CONVERSATION),
-            "ticket_keys": self.storage.list_keys(self.NAMESPACE_TICKET),
+            "conversation_count": len(
+                self.storage.list_keys(self.NAMESPACE_CONVERSATION)
+            ),
+            "ticket_count": len(self.storage.list_keys(self.NAMESPACE_TICKET)),
+            "ingress_job_count": len(self.storage.list_keys(self.NAMESPACE_INGRESS)),
         }
         if backend == "local":
             info["local_root"] = self.config.storage.local.root

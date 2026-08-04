@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
 from deepticket.api.deps import get_llm, get_service
-from deepticket.auth.dependencies import get_current_user
+from deepticket.auth.dependencies import get_admin_user, get_current_user
 from deepticket.auth.user_store import AuthUser
 
 router = APIRouter(prefix="/api", tags=["System"])
@@ -13,27 +13,31 @@ router = APIRouter(prefix="/api", tags=["System"])
 async def health(request: Request) -> dict:
     service = get_service(request)
     llm = get_llm(request)
+    public = service.get_public_health()
     return {
-        "ok": True,
-        "project": "deepticket",
-        "version": "0.1.0",
-        "layers": ["input", "output", "engine", "knowledge", "storage"],
-        "auth": True,
-        "agent_server": (
-            f"http://{service.config.engine.agent_server_host}:"
-            f"{service.config.engine.agent_server_port}"
-        ),
-        "model_label": service.llm_label,
-        "model": llm.model,
+        **public,
+        "register_enabled": service.config.auth.register_enabled,
         "gateway_model": f"openhands_{service.config.engine.llm_profile}",
         "profile": service.config.engine.llm_profile,
-        "workspace": service.config.knowledge.workspace_dir,
-        "storage": service.get_storage_info(),
+        "model": llm.model,
+    }
+
+
+@router.get("/metrics")
+async def metrics(request: Request, _: AuthUser = Depends(get_admin_user)) -> dict:
+    service = get_service(request)
+    llm = get_llm(request)
+    return {
+        "metrics": service.get_metrics_snapshot(),
+        "model_label": service.llm_label,
+        "model": llm.model,
         "knowledge_repos": service.list_git_repos(),
+        "storage": service.get_storage_info(),
         "extensions": service.get_extensions_info(),
         "ingress": {
             "auth": bool(service.config.ingress.api_key.strip()),
             "queue": service.get_ingress_queue_info(),
+            "routes": service.list_routes(),
         },
     }
 
@@ -45,6 +49,8 @@ async def knowledge_repos(request: Request, _: AuthUser = Depends(get_current_us
 
 @router.post("/knowledge/sync")
 async def knowledge_sync(request: Request, _: AuthUser = Depends(get_current_user)) -> dict:
+    from fastapi import HTTPException
+
     try:
         results = get_service(request).sync_knowledge()
     except RuntimeError as exc:
@@ -75,6 +81,8 @@ async def skills_list(request: Request, _: AuthUser = Depends(get_current_user))
 
 @router.post("/skills/reload")
 async def skills_reload(request: Request, _: AuthUser = Depends(get_current_user)) -> dict:
+    from fastapi import HTTPException
+
     try:
         published = get_service(request).reload_skills()
     except OSError as exc:

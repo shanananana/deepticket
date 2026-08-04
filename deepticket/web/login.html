@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>登录 · DeepTicket</title>
-  <link rel="stylesheet" href="/static/style.css?v=10" />
+  <link rel="stylesheet" href="/static/style.css?v=12" />
 </head>
 <body>
   <div class="aurora"></div>
@@ -31,14 +31,14 @@
           <label for="loginUsername">用户名</label>
           <div class="input-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <input id="loginUsername" type="text" value="admin" autocomplete="username" required minlength="3" placeholder="请输入用户名" />
+            <input id="loginUsername" type="text" autocomplete="username" required minlength="3" placeholder="请输入用户名" />
           </div>
         </div>
         <div class="field">
           <label for="loginPassword">密码</label>
           <div class="input-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <input id="loginPassword" type="password" value="admin" autocomplete="current-password" required placeholder="请输入密码" />
+            <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="请输入密码" />
           </div>
         </div>
         <button type="submit" class="btn primary full">
@@ -68,7 +68,7 @@
       </form>
 
       <p id="authError" class="auth-error"></p>
-      <p class="auth-footnote">首次使用可用 <kbd>admin</kbd> / <kbd>admin</kbd> 登录</p>
+      <p class="auth-footnote">首次部署会创建 bootstrap 账户，登录后请尽快修改密码</p>
     </section>
   </main>
 

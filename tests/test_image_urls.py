@@ -63,8 +63,9 @@ def test_openhands_engine_multimodal_payload() -> None:
         llm_model="openai/deepseek-v4-flash",
         llm_api_key="k",
         llm_base_url="https://api.deepseek.com/v1",
+        workspace_dir="/tmp/deepticket-workspace",
     )
-    content = engine._build_user_message(
+    content = engine._message_content(
         AgentInput(
             prompt="hello",
             image_urls=["https://example.com/a.png"],
@@ -72,4 +73,5 @@ def test_openhands_engine_multimodal_payload() -> None:
     )
     assert isinstance(content, list)
     assert content[0]["type"] == "text"
-    assert content[1]["type"] == "image_url"
+    assert content[1]["type"] == "image"
+    assert content[1]["image_urls"] == ["https://example.com/a.png"]

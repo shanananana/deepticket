@@ -14,8 +14,11 @@ _bearer = HTTPBearer(auto_error=False)
 
 @router.post("/register")
 async def register(body: RegisterRequest, request: Request) -> dict:
+    service = get_service(request)
+    if not service.config.auth.register_enabled:
+        raise HTTPException(status_code=403, detail="注册已关闭，请联系管理员")
     try:
-        user = get_service(request).users.register(body.username, body.password)
+        user = service.users.register(body.username, body.password)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"user": UserResponse(uid=user.uid, username=user.username).model_dump()}
@@ -34,8 +37,15 @@ async def login(body: LoginRequest, request: Request) -> dict:
 
 
 @router.get("/me")
-async def me(user: AuthUser = Depends(get_current_user)) -> dict:
-    return {"user": UserResponse(uid=user.uid, username=user.username).model_dump()}
+async def me(request: Request, user: AuthUser = Depends(get_current_user)) -> dict:
+    service = get_service(request)
+    return {
+        "user": UserResponse(
+            uid=user.uid,
+            username=user.username,
+            is_admin=service.is_admin(user),
+        ).model_dump()
+    }
 
 
 @router.post("/logout", response_model=OkResponse)

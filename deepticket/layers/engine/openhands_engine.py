@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import asyncio
 import copy
 import json
@@ -16,6 +17,8 @@ from deepticket.layers.engine.stream_reply import ReplyStreamState, consume_stre
 from deepticket.layers.input.models import AgentInput
 from deepticket.layers.output.activity import format_agent_activity
 from deepticket.layers.output.models import StreamChunk
+
+logger = logging.getLogger(__name__)
 
 _TERMINAL_STATUSES = frozenset({"finished", "error", "stuck"})
 
@@ -37,6 +40,8 @@ class OpenHandsEngine:
         self.llm_api_key = llm_api_key
         self.llm_base_url = llm_base_url
         self.workspace_dir = str(Path(workspace_dir).resolve())
+        self._agent_timeout_seconds = config.agent_timeout_seconds
+        self._cancel_events: dict[str, asyncio.Event] = {}
         self.server = (
             f"http://{config.agent_server_host}:{config.agent_server_port}"
         )
@@ -71,6 +76,19 @@ class OpenHandsEngine:
         for url in agent_input.image_urls:
             parts.append({"type": "image", "image_urls": [url]})
         return parts
+
+    async def cancel_conversation(self, conversation_id: str) -> bool:
+        stop = self._cancel_events.get(conversation_id)
+        if stop is None:
+            return False
+        stop.set()
+        return True
+
+    def _register_cancel(self, conversation_id: str, stop: asyncio.Event) -> None:
+        self._cancel_events[conversation_id] = stop
+
+    def _unregister_cancel(self, conversation_id: str) -> None:
+        self._cancel_events.pop(conversation_id, None)
 
     async def ensure_ready(self, *, max_attempts: int = 60) -> None:
         last_error: Exception | None = None
@@ -316,6 +334,12 @@ class OpenHandsEngine:
                             reply_state=reply_state,
                         )
         except Exception:
+            await out_queue.put(
+                StreamChunk(
+                    activity="WebSocket 不可用，已切换 HTTP 轮询模式",
+                    activity_kind="system",
+                )
+            )
             await self._poll_agent_activities(
                 conversation_id,
                 seen_event_ids=seen_event_ids,
@@ -350,8 +374,8 @@ class OpenHandsEngine:
                         out_queue=out_queue,
                         reply_state=reply_state,
                     )
-            except httpx.HTTPError:
-                pass
+            except httpx.HTTPError as exc:
+                logger.debug("Agent 活动轮询失败: %s", exc)
             try:
                 await asyncio.wait_for(poll_stop.wait(), timeout=0.35)
             except TimeoutError:
@@ -364,7 +388,7 @@ class OpenHandsEngine:
         poll_stop: asyncio.Event,
     ) -> str:
         observed_running = False
-        deadline = time.monotonic() + 600
+        deadline = time.monotonic() + self._agent_timeout_seconds
         while not poll_stop.is_set():
             resp = await client.get(
                 f"{self.server}/api/conversations/{conversation_id}",
@@ -386,8 +410,51 @@ class OpenHandsEngine:
                     raise RuntimeError(msg)
                 return status
             if time.monotonic() >= deadline:
-                raise RuntimeError("Agent 运行超时（600s）")
+                raise RuntimeError(
+                    f"Agent 运行超时（{self._agent_timeout_seconds}s）"
+                )
             await asyncio.sleep(0.4)
+
+    async def fetch_conversation_token_usage(
+        self, conversation_id: str
+    ) -> dict[str, int | str] | None:
+        """从 Agent Server 读取 OpenHands 累计 token 用量及模型。"""
+        async with self._client(timeout=15.0) as client:
+            resp = await client.get(
+                f"{self.server}/api/conversations/{conversation_id}",
+                headers=self._headers(),
+            )
+            if resp.status_code >= 400:
+                logger.warning(
+                    "读取 conversation token 失败: id=%s status=%s",
+                    conversation_id,
+                    resp.status_code,
+                )
+                return None
+            data = resp.json()
+        usage_map = (data.get("stats") or {}).get("usage_to_metrics") or {}
+        if not usage_map:
+            return None
+        metrics = next(iter(usage_map.values()), None)
+        if not isinstance(metrics, dict):
+            return None
+        accumulated = metrics.get("accumulated_token_usage") or {}
+        prompt = int(accumulated.get("prompt_tokens") or 0)
+        completion = int(accumulated.get("completion_tokens") or 0)
+        reasoning = int(accumulated.get("reasoning_tokens") or 0)
+        model = str(
+            metrics.get("model_name")
+            or accumulated.get("model")
+            or self.llm_model
+            or ""
+        ).strip()
+        return {
+            "prompt_tokens": prompt,
+            "completion_tokens": completion,
+            "reasoning_tokens": reasoning,
+            "total_tokens": prompt + completion + reasoning,
+            "model": model,
+        }
 
     async def _fetch_final_response(
         self,
@@ -454,6 +521,7 @@ class OpenHandsEngine:
         async def run_agent() -> None:
             client = self._client(timeout=None)
             ws_task: asyncio.Task[None] | None = None
+            conversation_id: str | None = None
             try:
                 await out_queue.put(
                     StreamChunk(activity="正在连接 Agent…", activity_kind="system")
@@ -462,6 +530,7 @@ class OpenHandsEngine:
                 conversation_id = await self._ensure_conversation(
                     client, agent_input, agent_settings
                 )
+                self._register_cancel(conversation_id, poll_stop)
                 await out_queue.put(StreamChunk(conversation_id=conversation_id))
                 await out_queue.put(
                     StreamChunk(
@@ -501,6 +570,8 @@ class OpenHandsEngine:
                 poll_stop.set()
                 if ws_task is not None and not ws_task.done():
                     ws_task.cancel()
+                if conversation_id:
+                    self._unregister_cancel(conversation_id)
                 await client.aclose()
                 if errors:
                     await out_queue.put(

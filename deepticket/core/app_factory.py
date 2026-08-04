@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from deepticket.api.deps import AppState
-from deepticket.api.routers import agent, auth, chats, ingress, system
+from deepticket.api.routers import admin, agent, auth, chats, ingress, system
 from deepticket.core.bootstrap import build_service, load_llm_or_raise, load_runtime_config
 from deepticket.paths import PROJECT_ROOT, WEB_DIR
 
@@ -47,13 +47,17 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
+        allow_origins=[
+            "http://127.0.0.1:8600",
+            "http://localhost:8600",
+        ],
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
     app.include_router(auth.router)
+    app.include_router(admin.router)
     app.include_router(chats.router)
     app.include_router(agent.router)
     app.include_router(ingress.router)

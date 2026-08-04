@@ -1,5 +1,6 @@
-import { renderMarkdown } from "/static/markdown.js?v=10";
+import { renderMarkdown } from "/static/markdown.js?v=15";
 
+const ASSET_VERSION = "13";
 const TOKEN_KEY = "deepticket_token";
 const RECORD_MODE_KEY = "deepticket_record_mode";
 
@@ -38,6 +39,7 @@ const messagesInner = messagesEl.querySelector(".messages-inner");
 const emptyStateEl = $("emptyState");
 const promptEl = $("prompt");
 const chatForm = $("chatForm");
+const imageUrlsEl = $("imageUrls");
 const sendBtn = $("sendBtn");
 const stopBtn = $("stopBtn");
 const statusEl = $("status");
@@ -61,10 +63,21 @@ const sidebar = $("sidebar");
 const scrim = $("scrim");
 const menuToggle = $("menuToggle");
 const toastStack = $("toastStack");
+const adminBoardBtn = $("adminBoardBtn");
+const adminDashboard = $("adminDashboard");
+const tokenSummary = $("tokenSummary");
+const tokenConversations = $("tokenConversations");
+const tokenRuns = $("tokenRuns");
+const refreshDashboardBtn = $("refreshDashboardBtn");
+const closeDashboardBtn = $("closeDashboardBtn");
+const composerZone = document.querySelector(".composer-zone");
 
 /* 状态 */
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser = null;
+let isAdmin = false;
+let dashboardMode = false;
+let dashboardPollTimer = null;
 let currentChatId = null;
 let agentConversationId = null;
 let busy = false;
@@ -180,6 +193,7 @@ function setBusy(nextBusy) {
 
 function setComposerEnabled(enabled) {
   promptEl.disabled = !enabled;
+  if (imageUrlsEl) imageUrlsEl.disabled = !enabled;
   sendBtn.disabled = !enabled || busy;
 }
 
@@ -319,6 +333,7 @@ function createThinkingBlock(options = {}) {
       const isLast = idx === activities.length - 1;
       if (item.kind === "evidence") step.classList.add("evidence");
       if (item.kind === "handoff") step.classList.add("handoff");
+      if (item.kind === "error") step.classList.add("error");
       if (isLast) step.classList.add("current");
       else step.classList.add("done");
       step.innerHTML = `<span class="step-icon">${iconFor(item.kind)}</span><span>${escapeHtml(item.text)}</span>`;
@@ -381,6 +396,37 @@ function createThinkingBlock(options = {}) {
   };
 }
 
+function createStaticThinkingBlock(activities) {
+  const root = document.createElement("div");
+  root.className = "thinking done collapsed";
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "thinking-toggle";
+  toggle.innerHTML = `
+    <span class="thinking-check">✓</span>
+    <span class="thinking-label">Agent 步骤（${activities.length}）</span>
+    <span class="thinking-chevron">${ICONS.chevron}</span>
+  `;
+  const body = document.createElement("div");
+  body.className = "thinking-body";
+  const stepsEl = document.createElement("div");
+  stepsEl.className = "thinking-steps";
+  const iconFor = (kind) => ACTIVITY_ICONS[kind] || ACTIVITY_ICONS.default;
+  activities.forEach((item, idx) => {
+    const step = document.createElement("div");
+    step.className = "thinking-step done";
+    if (item.kind === "error") step.classList.add("error");
+    if (idx === activities.length - 1) step.classList.add("current");
+    step.innerHTML = `<span class="step-icon">${iconFor(item.kind)}</span><span>${escapeHtml(item.text)}</span>`;
+    stepsEl.appendChild(step);
+  });
+  body.appendChild(stepsEl);
+  root.appendChild(toggle);
+  root.appendChild(body);
+  toggle.addEventListener("click", () => root.classList.toggle("collapsed"));
+  return root;
+}
+
 function renderHistory(messages) {
   messagesInner.querySelectorAll(".msg").forEach((el) => el.remove());
   for (const item of messages || []) {
@@ -388,6 +434,9 @@ function renderHistory(messages) {
       addUserMessage(item.content);
     } else if (item.role === "assistant") {
       const { body, content } = createAssistantShell(false);
+      if (Array.isArray(item.activities) && item.activities.length) {
+        body.insertBefore(createStaticThinkingBlock(item.activities), content);
+      }
       content.innerHTML = renderMarkdown(item.content);
       bindCodeCopy(content);
       addToolbar(body, item.content);
@@ -415,7 +464,11 @@ function clearChatPanel() {
 function renderChatList() {
   const query = searchInput.value.trim().toLowerCase();
   const visible = query
-    ? allChats.filter((c) => (c.title || "").toLowerCase().includes(query))
+    ? allChats.filter((c) => {
+        const title = (c.title || "").toLowerCase();
+        const blob = (c.search_text || "").toLowerCase();
+        return title.includes(query) || blob.includes(query);
+      })
     : allChats;
 
   chatListEl.innerHTML = "";
@@ -550,6 +603,16 @@ async function refreshChats() {
 
 async function openChat(chatId) {
   if (busy) return;
+  if (dashboardMode) {
+    dashboardMode = false;
+    adminDashboard.classList.add("hidden");
+    messagesEl.classList.remove("hidden");
+    if (composerZone) composerZone.classList.remove("hidden");
+    if (dashboardPollTimer) {
+      window.clearInterval(dashboardPollTimer);
+      dashboardPollTimer = null;
+    }
+  }
   const resp = await apiFetch(`/api/chats/${chatId}`);
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || "打开对话失败");
@@ -587,9 +650,43 @@ async function createChat() {
  * 发送消息（流式 + Markdown 增量渲染）
  * ------------------------------------------------------------------------ */
 
+async function pollChatForReply(chatId, baselineCount) {
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    await new Promise((resolve) => window.setTimeout(resolve, 2000));
+    const resp = await apiFetch(`/api/chats/${chatId}`);
+    const data = await resp.json();
+    if (!resp.ok) continue;
+    const messages = data.chat?.messages || [];
+    if (messages.length > baselineCount) {
+      const last = messages[messages.length - 1];
+      if (last?.role === "assistant" && last.content) return last;
+    }
+  }
+  return null;
+}
+
+function parseImageUrls(raw) {
+  return raw
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter((item) => /^https?:\/\//i.test(item));
+}
+
 async function sendMessage(text) {
   const message = text.trim();
   if (!message || busy || !currentChatId) return;
+
+  const imageUrls = imageUrlsEl ? parseImageUrls(imageUrlsEl.value || "") : [];
+  let baselineCount = 0;
+  try {
+    const baselineResp = await apiFetch(`/api/chats/${currentChatId}`);
+    const baselineData = await baselineResp.json();
+    if (baselineResp.ok) {
+      baselineCount = (baselineData.chat?.messages || []).length;
+    }
+  } catch {
+    baselineCount = 0;
+  }
 
   setBusy(true);
   setStatus("正在思考…", "busy");
@@ -637,6 +734,7 @@ async function sendMessage(text) {
         message,
         chat_id: currentChatId,
         conversation_id: agentConversationId,
+        image_urls: imageUrls,
       }),
       signal,
     });
@@ -677,7 +775,9 @@ async function sendMessage(text) {
             try {
               const meta = JSON.parse(line.slice(6));
               if (meta.activity) {
-                thinking.addActivity(meta.activity, meta.kind || "default");
+                const kind = meta.kind || "default";
+                thinking.addActivity(meta.activity, kind);
+                if (kind === "error") setStatus("Agent 异常", "error");
                 scrollToBottom();
                 await new Promise((resolve) => requestAnimationFrame(resolve));
               }
@@ -745,6 +845,7 @@ async function sendMessage(text) {
     }
 
     setStatus("就绪");
+    if (imageUrlsEl) imageUrlsEl.value = "";
     await refreshChats();
     if (currentChatId) {
       const titleResp = await apiFetch(`/api/chats/${currentChatId}`);
@@ -755,6 +856,20 @@ async function sendMessage(text) {
     if (err.name === "AbortError") {
       thinking.stop();
       setStatus("已停止", "error");
+      return;
+    }
+    const recovered = await pollChatForReply(currentChatId, baselineCount);
+    if (recovered?.content) {
+      thinking.finish(true);
+      content.classList.remove("placeholder", "streaming");
+      content.innerHTML = renderMarkdown(recovered.content);
+      bindCodeCopy(content);
+      addToolbar(body, recovered.content);
+      if (Array.isArray(recovered.activities) && recovered.activities.length) {
+        body.insertBefore(createStaticThinkingBlock(recovered.activities), content);
+      }
+      setStatus("已从服务端恢复回复", "ready");
+      await refreshChats();
       return;
     }
     fail(err.message);
@@ -774,9 +889,98 @@ async function loadMe() {
   const data = await resp.json();
   if (!resp.ok) throw new Error("获取用户失败");
   currentUser = data.user;
+  isAdmin = Boolean(currentUser.is_admin);
   userLabel.textContent = currentUser.username;
   menuUserName.textContent = currentUser.username;
   userAvatar.textContent = currentUser.username[0].toUpperCase();
+  if (adminBoardBtn) adminBoardBtn.classList.toggle("hidden", !isAdmin);
+  document.querySelector(".user-role").textContent = isAdmin ? "管理员" : "分析工作台";
+  if (syncKnowledgeBtn) syncKnowledgeBtn.classList.toggle("hidden", !isAdmin);
+  if (reloadSkillsBtn) reloadSkillsBtn.classList.toggle("hidden", !isAdmin);
+}
+
+function formatToken(n) {
+  const value = Number(n) || 0;
+  return value.toLocaleString("zh-CN");
+}
+
+function formatTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return escapeHtml(String(value));
+  return date.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatModel(item) {
+  return escapeHtml(item.model_label || item.model || "—");
+}
+
+function renderTokenUsage(data) {
+  const summary = data.summary || {};
+  tokenSummary.innerHTML = `
+    <article class="metric-card"><span class="metric-label">Prompt</span><strong>${formatToken(summary.prompt_tokens)}</strong><span class="metric-sub">累计输入</span></article>
+    <article class="metric-card"><span class="metric-label">Completion</span><strong>${formatToken(summary.completion_tokens)}</strong><span class="metric-sub">累计输出</span></article>
+    <article class="metric-card"><span class="metric-label">Reasoning</span><strong>${formatToken(summary.reasoning_tokens)}</strong><span class="metric-sub">推理 token</span></article>
+    <article class="metric-card"><span class="metric-label">Total</span><strong>${formatToken(summary.total_tokens)}</strong><span class="metric-sub">${summary.conversation_count || 0} 个对话</span></article>
+  `;
+
+  const conversations = data.conversations || [];
+  if (!conversations.length) {
+    tokenConversations.innerHTML = '<div class="dashboard-empty">暂无 token 记录，用户发起 Agent 对话后会自动采集</div>';
+  } else {
+    tokenConversations.innerHTML = `<table class="dashboard-table"><thead><tr><th>用户</th><th>对话</th><th>模型</th><th>Prompt</th><th>Completion</th><th>Reasoning</th><th>Total</th><th>更新时间</th></tr></thead><tbody>${conversations.map((item) => `<tr><td>${escapeHtml(item.username || "—")}</td><td><span class="token-chat-title">${escapeHtml(item.chat_title || "新会话")}</span><code>${escapeHtml(item.chat_id || "")}</code></td><td><span class="token-model-label">${formatModel(item)}</span><code>${escapeHtml(item.model || "")}</code></td><td>${formatToken(item.prompt_tokens)}</td><td>${formatToken(item.completion_tokens)}</td><td>${formatToken(item.reasoning_tokens)}</td><td><strong>${formatToken(item.total_tokens)}</strong></td><td>${formatTime(item.updated_at)}</td></tr>`).join("")}</tbody></table>`;
+  }
+
+  const runs = data.runs || [];
+  if (!runs.length) {
+    tokenRuns.innerHTML = '<div class="dashboard-empty">暂无单次运行记录</div>';
+  } else {
+    tokenRuns.innerHTML = `<table class="dashboard-table"><thead><tr><th>时间</th><th>用户</th><th>对话</th><th>模型</th><th>本次 Prompt</th><th>本次 Completion</th><th>本次 Reasoning</th><th>本次 Total</th></tr></thead><tbody>${runs.map((item) => `<tr><td>${formatTime(item.recorded_at)}</td><td>${escapeHtml(item.username || "—")}</td><td><span class="token-chat-title">${escapeHtml(item.chat_title || "新会话")}</span><code>${escapeHtml(item.chat_id || "")}</code></td><td><span class="token-model-label">${formatModel(item)}</span><code>${escapeHtml(item.model || "")}</code></td><td>${formatToken(item.prompt_tokens)}</td><td>${formatToken(item.completion_tokens)}</td><td>${formatToken(item.reasoning_tokens)}</td><td><strong>${formatToken(item.total_tokens)}</strong></td></tr>`).join("")}</tbody></table>`;
+  }
+}
+
+async function loadDashboard() {
+  const resp = await apiFetch("/api/admin/token-usage");
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "加载 Token 消耗失败");
+  renderTokenUsage(data);
+}
+
+function openDashboard() {
+  if (!isAdmin) return;
+  dashboardMode = true;
+  adminDashboard.classList.remove("hidden");
+  messagesEl.classList.add("hidden");
+  if (composerZone) composerZone.classList.add("hidden");
+  chatTitleEl.textContent = "Token 消耗";
+  conversationIdEl.textContent = "管理员视图";
+  closeSidebarMobile();
+  loadDashboard().catch((err) => toast(err.message, "error"));
+  if (dashboardPollTimer) window.clearInterval(dashboardPollTimer);
+  dashboardPollTimer = window.setInterval(() => {
+    loadDashboard().catch(() => {});
+  }, 30000);
+}
+
+function closeDashboard() {
+  dashboardMode = false;
+  adminDashboard.classList.add("hidden");
+  messagesEl.classList.remove("hidden");
+  if (composerZone) composerZone.classList.remove("hidden");
+  if (dashboardPollTimer) {
+    window.clearInterval(dashboardPollTimer);
+    dashboardPollTimer = null;
+  }
+  if (currentChatId) {
+    openChat(currentChatId).catch(() => clearChatPanel());
+  } else {
+    clearChatPanel();
+  }
 }
 
 async function loadHealth() {
@@ -785,10 +989,14 @@ async function loadHealth() {
     if (!resp.ok) return;
     const data = await resp.json();
     modelLabelEl.textContent = data.model_label || data.model || "—";
-    knowledgeLabelEl.textContent = Array.isArray(data.knowledge_repos) && data.knowledge_repos.length
-      ? data.knowledge_repos.map((r) => r.id).join(", ")
-      : "未配置";
-    storageLabelEl.textContent = data.storage?.backend || "—";
+    storageLabelEl.textContent = data.storage_backend || "—";
+    const reposResp = await apiFetch("/api/knowledge/repos");
+    if (reposResp.ok) {
+      const reposData = await reposResp.json();
+      knowledgeLabelEl.textContent = Array.isArray(reposData.repos) && reposData.repos.length
+        ? reposData.repos.map((r) => r.id).join(", ")
+        : "未配置";
+    }
   } catch { /* 忽略 */ }
 }
 
@@ -840,6 +1048,18 @@ menuToggle.addEventListener("click", () => {
 scrim.addEventListener("click", closeSidebarMobile);
 
 searchInput.addEventListener("input", renderChatList);
+
+if (adminBoardBtn) {
+  adminBoardBtn.addEventListener("click", openDashboard);
+}
+if (closeDashboardBtn) {
+  closeDashboardBtn.addEventListener("click", closeDashboard);
+}
+if (refreshDashboardBtn) {
+  refreshDashboardBtn.addEventListener("click", () => {
+    loadDashboard().then(() => toast("已刷新", "success")).catch((err) => toast(err.message, "error"));
+  });
+}
 
 /* --------------------------------------------------------------------------
  * 侧栏与菜单动作
@@ -938,8 +1158,19 @@ promptEl.addEventListener("keydown", (e) => {
   }
 });
 
-stopBtn.addEventListener("click", () => {
+stopBtn.addEventListener("click", async () => {
   if (chatAbortController) chatAbortController.abort();
+  if (agentConversationId) {
+    try {
+      await apiFetch("/api/agent/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversation_id: agentConversationId }),
+      });
+    } catch {
+      /* 忽略 cancel 失败 */
+    }
+  }
 });
 
 document.querySelectorAll(".hint-card").forEach((btn) => {

@@ -39,6 +39,34 @@ class WebSettings(BaseModel):
         default=8600,
         description="Web 端口；浏览器与外部 Ingress 均访问此端口",
     )
+    cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://127.0.0.1:8600",
+            "http://localhost:8600",
+        ],
+        description="允许的浏览器 Origin；生产请改为实际域名",
+    )
+
+
+class AuthSettings(BaseModel):
+    """登录与注册策略。"""
+
+    register_enabled: bool = Field(
+        default=False,
+        description="是否开放 /api/auth/register；生产建议 false",
+    )
+    bootstrap_username: str = Field(
+        default="admin",
+        description="首次启动时若不存在用户则创建的默认用户名",
+    )
+    bootstrap_password: str = Field(
+        default="admin",
+        description="默认 bootstrap 密码；生产环境请尽快修改",
+    )
+    admin_usernames: list[str] = Field(
+        default_factory=list,
+        description="管理员用户名列表；留空则仅 bootstrap_username 为管理员",
+    )
 
 
 class LocalStorageConfig(BaseModel):
@@ -150,6 +178,12 @@ class EngineConfig(BaseModel):
         default="",
         description="DeepTicket ↔ Agent Server 会话密钥；留空时 setup.sh 自动生成",
     )
+    agent_timeout_seconds: int = Field(
+        default=600,
+        ge=60,
+        le=3600,
+        description="单次 Agent 运行最长等待秒数",
+    )
 
 
 class ExtensionsConfig(BaseModel):
@@ -189,6 +223,11 @@ class IngressSettings(BaseModel):
         le=16,
         description="Ingress 异步队列 worker 数量；单进程内并发处理任务数",
     )
+    queue_backlog_alert: int = Field(
+        default=10,
+        ge=1,
+        description="队列 pending 超过此值时在 /api/metrics 产生告警",
+    )
     routes: list[RouteConfig] = Field(
         default_factory=list,
         description=(
@@ -213,6 +252,7 @@ class AppConfig(BaseModel):
 
     llm: LlmSettings = Field(default_factory=LlmSettings)
     web: WebSettings = Field(default_factory=WebSettings)
+    auth: AuthSettings = Field(default_factory=AuthSettings)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     knowledge: KnowledgeConfig = Field(default_factory=KnowledgeConfig)
     engine: EngineConfig = Field(default_factory=EngineConfig)

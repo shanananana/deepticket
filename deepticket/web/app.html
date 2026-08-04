@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>工作台 · DeepTicket</title>
-  <link rel="stylesheet" href="/static/style.css?v=10" />
+  <link rel="stylesheet" href="/static/style.css?v=15" />
 </head>
 <body>
   <div class="aurora"></div>
@@ -24,6 +24,11 @@
       <button id="newChatBtn" type="button" class="btn primary full new-chat-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
         <span>新对话</span>
+      </button>
+
+      <button id="adminBoardBtn" type="button" class="btn secondary full admin-board-btn hidden">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>Token 消耗</span>
       </button>
 
       <div class="search-wrap">
@@ -106,6 +111,28 @@
         </div>
       </header>
 
+      <div id="adminDashboard" class="admin-dashboard hidden">
+        <div class="dashboard-header">
+          <div>
+            <h2>Token 消耗</h2>
+            <p class="dashboard-sub">OpenHands 精确 token 统计 · 按用户与对话关联 · 仅管理员可见</p>
+          </div>
+          <div class="dashboard-actions">
+            <button id="refreshDashboardBtn" type="button" class="btn secondary">刷新</button>
+            <button id="closeDashboardBtn" type="button" class="btn secondary">返回对话</button>
+          </div>
+        </div>
+        <div id="tokenSummary" class="dashboard-metrics"></div>
+        <section class="dashboard-card">
+          <h3>按对话累计</h3>
+          <div id="tokenConversations" class="dashboard-table-wrap"></div>
+        </section>
+        <section class="dashboard-card token-runs-card">
+          <h3>最近 Agent 运行</h3>
+          <div id="tokenRuns" class="dashboard-table-wrap"></div>
+        </section>
+      </div>
+
       <div id="messages" class="messages">
         <div class="messages-inner">
           <div id="emptyState" class="empty-state">
@@ -136,6 +163,7 @@
         <form id="chatForm" class="composer">
           <div class="composer-inner">
             <textarea id="prompt" rows="1" placeholder="描述工单、粘贴日志，或提问…" disabled></textarea>
+            <input id="imageUrls" type="text" class="composer-extra" placeholder="截图 URL（可选，逗号分隔）" disabled />
             <div class="composer-bar">
               <span class="composer-hint"><kbd>Enter</kbd> 换行 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 发送</span>
               <div class="composer-actions">
@@ -153,6 +181,6 @@
 
   <div id="toastStack" class="toast-stack"></div>
 
-  <script type="module" src="/static/app.js?v=11"></script>
+  <script type="module" src="/static/app.js?v=15"></script>
 </body>
 </html>

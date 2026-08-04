@@ -22,3 +22,15 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+def get_admin_user(
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+) -> AuthUser:
+    if not get_service(request).is_admin(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="需要管理员权限",
+        )
+    return user

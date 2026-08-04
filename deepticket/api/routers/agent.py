@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from deepticket.api.deps import get_service
-from deepticket.api.schemas import ChatRequest, TicketRequest
+from deepticket.api.schemas import CancelAgentRequest, ChatRequest, OkResponse, TicketRequest
 from deepticket.api.streaming import sse_response
 from deepticket.auth.dependencies import get_current_user
 from deepticket.auth.user_store import AuthUser
@@ -54,3 +54,16 @@ async def ticket(
         )
     )
     return sse_response(chunks)
+
+
+@router.post("/agent/cancel", response_model=OkResponse)
+async def cancel_agent(
+    body: CancelAgentRequest,
+    request: Request,
+    _: AuthUser = Depends(get_current_user),
+) -> OkResponse:
+    service = get_service(request)
+    ok = await service.engine.cancel_conversation(body.conversation_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="未找到运行中的 Agent 会话")
+    return OkResponse()

@@ -13,10 +13,14 @@ from deepticket.service import DeepTicketService
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     async def _noop_startup(self: DeepTicketService) -> None:
-        self.users.ensure_bootstrap_user("admin", "admin")
+        self.users.ensure_bootstrap_user(
+            self.config.auth.bootstrap_username,
+            self.config.auth.bootstrap_password,
+        )
 
     monkeypatch.setattr(DeepTicketService, "startup", _noop_startup)
     with TestClient(create_app()) as test_client:
+        test_client.app.state.deepticket.service.config.auth.register_enabled = True
         yield test_client
 
 
@@ -26,7 +30,69 @@ def test_health_endpoint(client: TestClient):
     data = resp.json()
     assert data["ok"] is True
     assert data["project"] == "deepticket"
-    assert "layers" in data
+    assert "storage_backend" in data
+    assert isinstance(data.get("register_enabled"), bool)
+
+
+def test_metrics_requires_auth(client: TestClient):
+    resp = client.get("/api/metrics")
+    assert resp.status_code == 401
+
+
+def test_metrics_authenticated(client: TestClient):
+    token = client.post(
+        "/api/auth/login", json={"username": "admin", "password": "admin"}
+    ).json()["token"]
+    resp = client.get("/api/metrics", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "metrics" in body
+    assert "agent" in body["metrics"]
+    assert "webhook" in body["metrics"]
+
+
+def test_metrics_forbidden_for_non_admin(client: TestClient):
+    username = f"pytest_{uuid.uuid4().hex[:8]}"
+    password = "pytest-pass-123"
+    client.post("/api/auth/register", json={"username": username, "password": password})
+    token = client.post(
+        "/api/auth/login", json={"username": username, "password": password}
+    ).json()["token"]
+    resp = client.get("/api/metrics", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 403
+
+
+def test_admin_token_usage(client: TestClient):
+    token = client.post(
+        "/api/auth/login", json={"username": "admin", "password": "admin"}
+    ).json()["token"]
+    resp = client.get(
+        "/api/admin/token-usage",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["user"]["is_admin"] is True
+    assert "summary" in body
+    assert "conversations" in body
+    assert "runs" in body
+    assert "prompt_tokens" in body["summary"]
+    if body["conversations"]:
+        assert "model" in body["conversations"][0]
+
+
+def test_admin_token_usage_forbidden_for_non_admin(client: TestClient):
+    username = f"pytest_{uuid.uuid4().hex[:8]}"
+    password = "pytest-pass-123"
+    client.post("/api/auth/register", json={"username": username, "password": password})
+    token = client.post(
+        "/api/auth/login", json={"username": username, "password": password}
+    ).json()["token"]
+    resp = client.get(
+        "/api/admin/token-usage",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 403
 
 
 def test_auth_register_login_flow(client: TestClient):

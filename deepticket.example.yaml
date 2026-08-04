@@ -13,12 +13,23 @@ llm:
 web:
   host: 127.0.0.1
   port: 8600
+  cors_origins:
+    - http://127.0.0.1:8600
+    - http://localhost:8600
+
+auth:
+  register_enabled: false
+  bootstrap_username: admin
+  bootstrap_password: admin
+  admin_usernames:
+    - admin
 
 engine:
   agent_server_host: 127.0.0.1
   agent_server_port: 8100
   llm_profile: deepseek-v4-flash
   session_api_key: ""                        # 留空时 setup.sh 自动生成并写回本文件
+  agent_timeout_seconds: 600                 # 单次 Agent 最长等待（秒）
 
 storage:
   backend: redis                             # local | redis
@@ -65,6 +76,7 @@ extensions:
 ingress:
   api_key: ""                                # 留空时 setup.sh 自动生成
   queue_workers: 1                            # 异步队列 worker 数
+  queue_backlog_alert: 10                     # 队列积压告警阈值（/api/metrics）
   routes:
     - type: incident
       description: 监控/告警类故障

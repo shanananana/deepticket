@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+import pytest
+
+from deepticket.layers.storage.local import LocalStorage
+from deepticket.layers.storage.token_usage import TokenUsageStore
+
+
+@pytest.fixture
+def store(tmp_path) -> TokenUsageStore:
+    return TokenUsageStore(LocalStorage(tmp_path / "data"))
+
+
+def test_record_run_and_list(store: TokenUsageStore) -> None:
+    store.record_run(
+        uid="uid1",
+        username="alice",
+        chat_id="chat1",
+        chat_title="ROI 分析",
+        agent_conversation_id="conv-1",
+        model="openai/deepseek-v4-flash",
+        model_label="DeepSeek V4 Flash",
+        delta={
+            "prompt_tokens": 100,
+            "completion_tokens": 20,
+            "reasoning_tokens": 5,
+            "total_tokens": 125,
+        },
+        cumulative={
+            "prompt_tokens": 100,
+            "completion_tokens": 20,
+            "reasoning_tokens": 5,
+            "total_tokens": 125,
+        },
+    )
+    runs = store.list_recent_runs(limit=10)
+    assert len(runs) == 1
+    assert runs[0]["username"] == "alice"
+    assert runs[0]["chat_id"] == "chat1"
+    assert runs[0]["model"] == "openai/deepseek-v4-flash"
+    assert runs[0]["total_tokens"] == 125
+
+
+def test_list_conversation_usage(store: TokenUsageStore) -> None:
+    storage = store.storage
+    storage.set_json(
+        "chat_threads",
+        "uid1:chat1",
+        {
+            "chat_id": "chat1",
+            "uid": "uid1",
+            "title": "测试对话",
+            "token_usage": {
+                "prompt_tokens": 500,
+                "completion_tokens": 50,
+                "reasoning_tokens": 10,
+                "total_tokens": 560,
+                "model": "openai/deepseek-v4-flash",
+                "model_label": "DeepSeek V4 Flash",
+                "updated_at": "2026-08-04T12:00:00+00:00",
+            },
+        },
+    )
+    items = store.list_conversation_usage(resolve_username=lambda uid: "alice")
+    assert len(items) == 1
+    assert items[0]["username"] == "alice"
+    assert items[0]["chat_title"] == "测试对话"
+    assert items[0]["model"] == "openai/deepseek-v4-flash"
+    assert items[0]["model_label"] == "DeepSeek V4 Flash"
+    assert items[0]["total_tokens"] == 560
+
+    summary = store.summarize_conversations(items)
+    assert summary["total_tokens"] == 560
+    assert summary["conversation_count"] == 1

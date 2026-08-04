@@ -70,3 +70,19 @@ def test_list_sorted_by_updated(store):
     listed = store.list_threads("u1")
     assert listed[0]["chat_id"] == t1["chat_id"]
     assert listed[1]["chat_id"] == t2["chat_id"]
+
+
+def test_assistant_activities_and_search_text(store):
+    t = store.create_thread("u1", title="新会话")
+    store.append_message(
+        "u1",
+        t["chat_id"],
+        role="assistant",
+        content="结论",
+        activities=[{"text": "查询日志", "kind": "log"}],
+    )
+    doc = store.get_thread("u1", t["chat_id"])
+    assert doc["messages"][0]["activities"][0]["kind"] == "log"
+    listed = store.list_threads("u1")
+    assert "查询日志" in listed[0]["search_text"]
+

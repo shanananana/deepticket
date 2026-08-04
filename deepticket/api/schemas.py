@@ -80,7 +80,12 @@ class RouteInfoResponse(BaseModel):
 class UserResponse(BaseModel):
     uid: str
     username: str
+    is_admin: bool = False
 
 
 class OkResponse(BaseModel):
     ok: bool = True
+
+
+class CancelAgentRequest(BaseModel):
+    conversation_id: str = Field(min_length=1)

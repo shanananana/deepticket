@@ -9,6 +9,8 @@ from deepticket.utils.time import utc_now_iso
 _NS_THREADS = "chat_threads"
 _NS_INDEX = "chat_index"
 _TITLE_MAX = 48
+_SEARCH_MAX = 4000
+_MAX_MESSAGES = 200
 
 
 class ChatHistoryStore:
@@ -45,7 +47,7 @@ class ChatHistoryStore:
             "updated_at": now,
         }
         self.storage.set_json(_NS_THREADS, self._thread_key(uid, chat_id), doc)
-        self._upsert_index(uid, chat_id, doc["title"], now)
+        self._upsert_index(uid, chat_id, doc["title"], now, search_text="")
         return doc
 
     def delete_thread(self, uid: str, chat_id: str) -> bool:
@@ -70,19 +72,23 @@ class ChatHistoryStore:
         role: str,
         content: str,
         agent_conversation_id: str | None = None,
+        activities: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         doc = self.get_thread(uid, chat_id)
         if not doc:
             raise KeyError(f"chat not found: {chat_id}")
 
         now = utc_now_iso()
-        doc["messages"].append(
-            {
-                "role": role,
-                "content": content,
-                "created_at": now,
-            }
-        )
+        message: dict[str, Any] = {
+            "role": role,
+            "content": content,
+            "created_at": now,
+        }
+        if activities:
+            message["activities"] = activities
+        doc["messages"].append(message)
+        if len(doc["messages"]) > _MAX_MESSAGES:
+            doc["messages"] = doc["messages"][-_MAX_MESSAGES:]
         doc["updated_at"] = now
         if agent_conversation_id:
             doc["agent_conversation_id"] = agent_conversation_id
@@ -93,7 +99,13 @@ class ChatHistoryStore:
             doc["title"] = _title_from_message(content)
 
         self.storage.set_json(_NS_THREADS, self._thread_key(uid, chat_id), doc)
-        self._upsert_index(uid, chat_id, doc["title"], now)
+        self._upsert_index(
+            uid,
+            chat_id,
+            doc["title"],
+            now,
+            search_text=self._build_search_text(doc),
+        )
         return doc
 
     def rename_thread(self, uid: str, chat_id: str, title: str) -> dict[str, Any] | None:
@@ -106,7 +118,13 @@ class ChatHistoryStore:
         doc["title"] = clean
         doc["updated_at"] = utc_now_iso()
         self.storage.set_json(_NS_THREADS, self._thread_key(uid, chat_id), doc)
-        self._upsert_index(uid, chat_id, clean, doc["updated_at"])
+        self._upsert_index(
+            uid,
+            chat_id,
+            clean,
+            doc["updated_at"],
+            search_text=self._build_search_text(doc),
+        )
         return doc
 
     def set_agent_conversation_id(
@@ -119,6 +137,35 @@ class ChatHistoryStore:
         doc["updated_at"] = utc_now_iso()
         self.storage.set_json(_NS_THREADS, self._thread_key(uid, chat_id), doc)
 
+    def set_token_usage(
+        self,
+        uid: str,
+        chat_id: str,
+        *,
+        prompt_tokens: int,
+        completion_tokens: int,
+        reasoning_tokens: int,
+        total_tokens: int,
+        model: str = "",
+        model_label: str = "",
+    ) -> dict[str, Any]:
+        doc = self.get_thread(uid, chat_id)
+        if not doc:
+            raise KeyError(f"chat not found: {chat_id}")
+        now = utc_now_iso()
+        doc["token_usage"] = {
+            "prompt_tokens": max(0, prompt_tokens),
+            "completion_tokens": max(0, completion_tokens),
+            "reasoning_tokens": max(0, reasoning_tokens),
+            "total_tokens": max(0, total_tokens),
+            "model": model,
+            "model_label": model_label,
+            "updated_at": now,
+        }
+        doc["updated_at"] = now
+        self.storage.set_json(_NS_THREADS, self._thread_key(uid, chat_id), doc)
+        return doc
+
     @staticmethod
     def _thread_key(uid: str, chat_id: str) -> str:
         return f"{uid}:{chat_id}"
@@ -127,7 +174,13 @@ class ChatHistoryStore:
         return self.storage.get_json(_NS_INDEX, uid) or {"threads": []}
 
     def _upsert_index(
-        self, uid: str, chat_id: str, title: str, updated_at: str
+        self,
+        uid: str,
+        chat_id: str,
+        title: str,
+        updated_at: str,
+        *,
+        search_text: str,
     ) -> None:
         index = self._load_index(uid)
         threads = [
@@ -138,9 +191,24 @@ class ChatHistoryStore:
                 "chat_id": chat_id,
                 "title": title[:_TITLE_MAX],
                 "updated_at": updated_at,
+                "search_text": search_text[:_SEARCH_MAX],
             }
         )
         self.storage.set_json(_NS_INDEX, uid, {"threads": threads})
+
+    @staticmethod
+    def _build_search_text(doc: dict[str, Any]) -> str:
+        parts = [doc.get("title") or ""]
+        for item in doc.get("messages") or []:
+            content = item.get("content")
+            if isinstance(content, str) and content.strip():
+                parts.append(content.strip())
+            for act in item.get("activities") or []:
+                text = act.get("text")
+                if isinstance(text, str) and text.strip():
+                    parts.append(text.strip())
+        blob = " ".join(parts)
+        return blob[:_SEARCH_MAX]
 
 
 def _title_from_message(message: str) -> str:

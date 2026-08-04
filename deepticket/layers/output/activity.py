@@ -20,7 +20,7 @@ _TOOL_LABELS: dict[str, str] = {
 }
 
 _LOG_QUERY_RE = re.compile(
-    r"query_campaign_metrics|generate_campaign_data|query_ad_roi|log-query|query_logs|/skills/log-query/",
+    r"query_campaign_metrics|query_logs|query_ad_roi|generate_campaign_data|log-query|/skills/log-query/",
     re.IGNORECASE,
 )
 _CONFIG_QUERY_RE = re.compile(
@@ -68,13 +68,15 @@ def _classify_command(command: str) -> AgentActivity | None:
         return None
     if _LOG_QUERY_RE.search(cmd):
         if "generate_campaign_data" in cmd:
-            return AgentActivity("生成 ad_agent 投放指标日志", "log")
-        if "query_campaign_metrics" in cmd:
-            return AgentActivity("查询 ad_agent 投放 ROI 日志", "log")
+            return AgentActivity("生成投放指标日志（演示数据）", "log")
+        if "query_campaign_metrics" in cmd or "query_ad_roi" in cmd:
+            return AgentActivity("查询投放 ROI / 指标日志", "log")
+        if "query_logs" in cmd:
+            return AgentActivity("使用 log-query Skill 查询日志", "log")
         if "campaign_metrics.log" in cmd or "budget_audit.log" in cmd:
             return AgentActivity("读取 ad_agent 投放/审计日志", "log")
         return AgentActivity("使用 log-query Skill 查询日志/指标", "log")
-    if _CONFIG_QUERY_RE.search(cmd):
+    if _CONFIG_QUERY_RE.search(cmd) or "query_config" in cmd:
         return AgentActivity("使用 config-query Skill 查询配置", "config")
     if ".openhands/skills/" in cmd:
         return AgentActivity(f"调用 Skill: {_truncate(cmd, 90)}", "skill")

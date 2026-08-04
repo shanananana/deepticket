@@ -10,6 +10,7 @@ from deepticket.layers.input.ingress_models import IngressEvent
 logger = logging.getLogger(__name__)
 
 IngressQueueHandler = Callable[["IngressQueueItem"], Awaitable[None]]
+IngressQueueFailureHandler = Callable[["IngressQueueItem", BaseException], Awaitable[None]]
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,7 @@ class IngressJobQueue:
         self._queue: asyncio.Queue[IngressQueueItem | None] = asyncio.Queue()
         self._tasks: list[asyncio.Task] = []
         self._handler: IngressQueueHandler | None = None
+        self._on_failure: IngressQueueFailureHandler | None = None
 
     def qsize(self) -> int:
         return self._queue.qsize()
@@ -34,10 +36,16 @@ class IngressJobQueue:
     def worker_count(self) -> int:
         return self._workers
 
-    async def start(self, handler: IngressQueueHandler) -> None:
+    async def start(
+        self,
+        handler: IngressQueueHandler,
+        *,
+        on_failure: IngressQueueFailureHandler | None = None,
+    ) -> None:
         if self._tasks:
             return
         self._handler = handler
+        self._on_failure = on_failure
         for worker_id in range(self._workers):
             self._tasks.append(asyncio.create_task(self._worker(worker_id)))
         logger.info("Ingress 队列已启动: workers=%s", self._workers)
@@ -50,6 +58,7 @@ class IngressJobQueue:
         await asyncio.gather(*self._tasks, return_exceptions=True)
         self._tasks.clear()
         self._handler = None
+        self._on_failure = None
         logger.info("Ingress 队列已停止")
 
     async def enqueue(self, item: IngressQueueItem) -> None:
@@ -75,5 +84,15 @@ class IngressJobQueue:
                     exc,
                     exc_info=True,
                 )
+                if item is not None and self._on_failure is not None:
+                    try:
+                        await self._on_failure(item, exc)
+                    except Exception as mark_exc:
+                        logger.error(
+                            "Ingress 失败回调异常 job_id=%s: %s",
+                            item.job_id,
+                            mark_exc,
+                            exc_info=True,
+                        )
             finally:
                 self._queue.task_done()
