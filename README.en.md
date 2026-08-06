@@ -17,11 +17,22 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**An intelligent Agent platform for production incidents and project Q&A** (OpenHands · SRE / AIOps · tickets · MCP · Webhook). Built on the [OpenHands](https://github.com/OpenHands/OpenHands) Agent Server with **one-command server deployment** (`bash scripts/start_all.sh`): MCP, Skills, and knowledge bases are configured once on the server—PMs, ops, and other non-developers can ask questions in the browser without local Agent setup or per-user MCP wiring; Git source, log/config lookups, Ingress, and Webhooks form a verifiable triage pipeline.
+**An intelligent Agent platform for production incidents and project Q&A** — an **Ingress / Webhook orchestration layer** on [OpenHands](https://github.com/OpenHands/OpenHands) so agents ground answers in **Git source + logs + config**, not RAG guesses alone.
 
-- **Ingress** — HTTP events from monitoring / ITSM, async queue + API key
+Keywords: AIOps · SRE · on-call · incident triage · root cause analysis · LLM agent · MCP · FastAPI
+
+- **Ingress** — HTTP events from monitoring / Jira / ITSM, async queue + API key
 - **Outbound** — Webhook to ITSM or store-only
-- **Workbench** — Multi-turn chat, logs, screenshot URLs; confidence badge on analysis runs; SSE heartbeat for reverse proxies
+- **Workbench** — Multi-turn chat, log paste, Thinking steps, analysis confidence; SSE heartbeat for reverse proxies
+- **Example** — Vertical agent reference: [ad_agent](https://github.com/shanananana/ad_agent) (Spring AI ad ops); DeepTicket is the ops orchestration layer
+
+<p align="center">
+  <a href="docs/quickstart-demo.md"><strong>5-minute quick start</strong></a>
+  ·
+  <a href="docs/DEMO_PROMPT.md">Sample prompts</a>
+  ·
+  <a href="https://github.com/shanananana/ad_agent">ad_agent demo</a>
+</p>
 
 ---
 
@@ -29,11 +40,28 @@
 
 <p align="center">
   <a href="docs/assets/demo.mp4">
-    <img src="docs/assets/demo.gif" width="720" alt="DeepTicket demo: web workbench · ad_agent ROI analysis">
+    <img src="docs/assets/demo.gif" width="720" alt="DeepTicket demo: OpenHands agent analyzes ad campaign ROI drop with Thinking steps and confidence badge">
   </a>
 </p>
 
 <p align="center"><sub>Click the GIF for the full MP4 (~67s) · GitHub does not render <code>&lt;video&gt;</code> in README</sub></p>
+
+---
+
+## 5-minute quick start
+
+```bash
+git clone https://github.com/shanananana/deepticket.git
+cd deepticket
+bash scripts/setup.sh
+# Edit deepticket.yaml — set llm.api_key
+bash scripts/start_all.sh
+bash scripts/quickstart_demo.sh
+```
+
+Open http://127.0.0.1:8600 — default `admin` / `admin`. Paste the **Nginx log** sample from [docs/DEMO_PROMPT.md](docs/DEMO_PROMPT.md) (no Git repo required).
+
+Full ROI demo (logs + code): [docs/quickstart-demo.md](docs/quickstart-demo.md).
 
 ---
 
@@ -86,23 +114,14 @@ DeepTicket is an **orchestration layer on OpenHands**: unified ingress, webhook 
 
 ## Quick Start
 
-```bash
-git clone https://github.com/shanananana/deepticket.git
-cd deepticket
-bash scripts/setup.sh
-# Edit deepticket.yaml (LLM, Git repos, etc.; see deepticket.example.yaml)
-bash scripts/start_all.sh
-```
-
-Open http://127.0.0.1:8600 — default `admin` / `admin` (**change in production**).
+See [5-minute quick start](#5-minute-quick-start) above. Common commands:
 
 | Command | Purpose |
 |---------|---------|
 | `bash scripts/start_all.sh` | Daily startup |
+| `bash scripts/quickstart_demo.sh` | Onboarding hints / optional ROI logs |
 | `bash scripts/status.sh` | Health & queue check |
 | `bash scripts/verify.sh` | Offline/online self-check |
-
-**Local ad_agent demo:** Point `knowledge.repos` in `deepticket.yaml` at `workspace/knowledge/ad-agent`, sync knowledge, then run `bash scripts/refresh_ad_agent_logs.sh`.
 
 Use **8600** in the browser only; **8100** is internal—bind to `127.0.0.1` in production.
 
@@ -142,6 +161,25 @@ bash scripts/verify.sh --online
 ```
 
 **Requirements:** macOS / Linux · Python 3.11+ · OpenAI-compatible LLM · Redis optional
+
+---
+
+## FAQ
+
+<details>
+<summary><strong>How is DeepTicket related to OpenHands?</strong></summary>
+<p>OpenHands runs the agent (files, terminal, MCP). DeepTicket adds multi-user workbench, Git knowledge sync, Ingress tickets, Webhook outbound, and routing for SRE/on-call workflows.</p>
+</details>
+
+<details>
+<summary><strong>How is this different from RAG or Spring AI agents like ad_agent?</strong></summary>
+<p>RAG retrieves doc chunks; vertical agents like <a href="https://github.com/shanananana/ad_agent">ad_agent</a> focus on one business domain. DeepTicket targets <strong>Git + logs + config + ITSM loops</strong> for verifiable incident triage.</p>
+</details>
+
+<details>
+<summary><strong>Can I integrate Jira or monitoring alerts?</strong></summary>
+<p>Yes — HTTP POST to Ingress with API key; results via Webhook. See <code>deepticket.example.yaml</code> and <code>bash scripts/test_ingress_e2e.sh</code>.</p>
+</details>
 
 ---
 
