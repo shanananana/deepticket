@@ -23,6 +23,7 @@ from deepticket.layers.input.ingress_models import IngressEvent
 from deepticket.layers.input.models import AgentInput, ChatInput, TicketInput
 from deepticket.layers.knowledge.manager import GitSyncResult, KnowledgeManager
 from deepticket.layers.knowledge.skill_manager import SkillInfo, SkillManager
+from deepticket.layers.output.confidence import compute_confidence
 from deepticket.layers.output.models import StreamChunk
 from deepticket.layers.output.outbound.registry import get_outbound_handler
 from deepticket.layers.output.outbound_models import OutboundPayload
@@ -363,6 +364,21 @@ class DeepTicketService:
         )
         return IngressJobResult(**queued_doc)
 
+    @staticmethod
+    def _confidence_chunk(
+        *,
+        activities: list[dict[str, str]],
+        reply: str,
+        ok: bool = True,
+    ) -> StreamChunk:
+        return StreamChunk(
+            confidence=compute_confidence(
+                activities=activities,
+                reply=reply,
+                ok=ok,
+            )
+        )
+
     async def run_ingress_event(
         self,
         event: IngressEvent,
@@ -407,11 +423,12 @@ class DeepTicketService:
 
         reply = ""
         conversation_id: str | None = None
+        confidence: dict | None = None
         error: str | None = None
         status = "finished"
 
         try:
-            reply, conversation_id = await collect_stream_text(
+            reply, conversation_id, confidence = await collect_stream_text(
                 self.run_ticket_stream(ticket)
             )
         except Exception as exc:
@@ -428,7 +445,10 @@ class DeepTicketService:
             reply=reply,
             conversation_id=conversation_id,
             error=error,
-            metadata=ticket.metadata,
+            metadata={
+                **ticket.metadata,
+                **({"confidence": confidence} if confidence else {}),
+            },
         )
         handler = get_outbound_handler(route.outbound.method)
         outbound_result = await handler.deliver(outbound_payload, route.outbound)
@@ -454,6 +474,7 @@ class DeepTicketService:
             outbound_detail=outbound_result.detail,
             metadata={
                 **ticket.metadata,
+                **({"confidence": confidence} if confidence else {}),
                 "outbound_response_status": outbound_result.response_status,
                 "error": error,
             },
@@ -500,15 +521,26 @@ class DeepTicketService:
                 assistant_parts.append(chunk.delta)
             yield chunk
 
+        reply_text = "".join(assistant_parts)
+        confidence = compute_confidence(
+            activities=activity_log,
+            reply=reply_text,
+            ok=True,
+            require_analysis=True,
+        )
+        if confidence:
+            yield StreamChunk(confidence=confidence)
+
         if uid and chat_id:
             if assistant_parts:
                 self.chat_history.append_message(
                     uid,
                     chat_id,
                     role="assistant",
-                    content="".join(assistant_parts),
+                    content=reply_text,
                     agent_conversation_id=agent_conversation_id,
                     activities=activity_log or None,
+                    confidence=confidence if confidence else None,
                 )
             elif agent_conversation_id:
                 self.chat_history.set_agent_conversation_id(
@@ -538,8 +570,23 @@ class DeepTicketService:
                 "repo_ids": payload.repo_ids,
             },
         )
+        assistant_parts: list[str] = []
+        activity_log: list[dict[str, str]] = []
         async for chunk in self._run_stream(agent_input):
+            if chunk.activity:
+                activity_log.append(
+                    {
+                        "text": chunk.activity,
+                        "kind": chunk.activity_kind or "default",
+                    }
+                )
+            if chunk.delta:
+                assistant_parts.append(chunk.delta)
             yield chunk
+        yield self._confidence_chunk(
+            activities=activity_log,
+            reply="".join(assistant_parts),
+        )
 
     async def _run_stream(self, agent_input: AgentInput) -> AsyncIterator[StreamChunk]:
         conversation_id = agent_input.conversation_id

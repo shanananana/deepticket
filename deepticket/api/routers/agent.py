@@ -33,7 +33,12 @@ async def chat(
         uid=user.uid,
         chat_id=body.chat_id,
     )
-    return sse_response(chunks, conversation_id=conversation_id)
+    heartbeat = service.config.web.sse_heartbeat_seconds
+    return sse_response(
+        chunks,
+        conversation_id=conversation_id,
+        heartbeat_seconds=heartbeat,
+    )
 
 
 @router.post("/ticket")
@@ -53,7 +58,10 @@ async def ticket(
             image_urls=list(body.image_urls),
         )
     )
-    return sse_response(chunks)
+    return sse_response(
+        chunks,
+        heartbeat_seconds=service.config.web.sse_heartbeat_seconds,
+    )
 
 
 @router.post("/agent/cancel", response_model=OkResponse)

@@ -73,6 +73,7 @@ class ChatHistoryStore:
         content: str,
         agent_conversation_id: str | None = None,
         activities: list[dict[str, str]] | None = None,
+        confidence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         doc = self.get_thread(uid, chat_id)
         if not doc:
@@ -86,6 +87,8 @@ class ChatHistoryStore:
         }
         if activities:
             message["activities"] = activities
+        if confidence:
+            message["confidence"] = confidence
         doc["messages"].append(message)
         if len(doc["messages"]) > _MAX_MESSAGES:
             doc["messages"] = doc["messages"][-_MAX_MESSAGES:]

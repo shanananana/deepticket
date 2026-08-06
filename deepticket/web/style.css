@@ -1032,6 +1032,42 @@ body {
 .msg-toolbar .icon-btn { width: 26px; height: 26px; }
 .msg-toolbar .icon-btn svg { width: 13px; height: 13px; }
 
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.confidence-label {
+  color: var(--text-dim);
+}
+
+.confidence-score {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.confidence-high {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.confidence-medium {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.confidence-low {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.12);
+}
+
 .msg-error {
   padding: 11px 14px;
   border-radius: var(--r-sm);
@@ -1073,6 +1109,56 @@ body {
   text-align: left;
   cursor: pointer;
   transition: color var(--t-fast);
+  min-width: 0;
+}
+
+.thinking-tab-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+}
+
+.thinking-tab-scroll::-webkit-scrollbar { display: none; }
+
+.thinking-tab-scroll.can-scroll-end {
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
+
+.thinking-label {
+  display: inline-block;
+  font-weight: 500;
+  padding-right: 6px;
+}
+
+.thinking-step-count {
+  display: none;
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.thinking-step-count.visible { display: inline-block; }
+
+.thinking.done .thinking-step-count {
+  background: rgba(5, 150, 105, 0.12);
+  color: var(--success);
 }
 
 .thinking.active .thinking-toggle { color: var(--accent); }
@@ -1106,8 +1192,7 @@ body {
 
 .thinking.done .thinking-check { display: grid; }
 
-.thinking-label { flex: 1; font-weight: 500; }
-.thinking-elapsed { font-family: var(--mono); font-size: 10.5px; color: var(--text-faint); }
+.thinking-elapsed { flex-shrink: 0; font-family: var(--mono); font-size: 10.5px; color: var(--text-faint); }
 
 .thinking-chevron {
   flex-shrink: 0;
@@ -1119,11 +1204,55 @@ body {
 .thinking.collapsed .thinking-chevron { transform: rotate(-90deg); }
 
 .thinking-body {
-  max-height: 260px;
+  position: relative;
+  max-height: 280px;
   padding: 0 11px 11px;
   opacity: 1;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
   transition: max-height var(--t-med), opacity var(--t-fast), padding var(--t-med);
+}
+
+.thinking-body::-webkit-scrollbar { width: 6px; }
+.thinking-body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.16);
+}
+
+.thinking-body.can-scroll-top::before,
+.thinking-body.can-scroll-bottom::after {
+  content: "";
+  position: sticky;
+  left: 0;
+  right: 0;
+  display: block;
+  height: 14px;
+  margin: 0 -11px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.thinking-body.can-scroll-top::before {
+  top: 0;
+  margin-bottom: -14px;
+  background: linear-gradient(180deg, var(--surface-1) 0%, transparent 100%);
+}
+
+.thinking.active .thinking-body.can-scroll-top::before {
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.95) 0%, transparent 100%);
+}
+
+.thinking-body.can-scroll-bottom::after {
+  bottom: 0;
+  margin-top: -14px;
+  background: linear-gradient(0deg, var(--surface-1) 0%, transparent 100%);
+}
+
+.thinking.active .thinking-body.can-scroll-bottom::after {
+  background: linear-gradient(0deg, rgba(239, 246, 255, 0.95) 0%, transparent 100%);
 }
 
 .thinking.collapsed .thinking-body {
@@ -1142,6 +1271,11 @@ body {
   line-height: 1.5;
   color: var(--text-faint);
   transition: color var(--t-med);
+}
+
+.thinking-step .step-text {
+  min-width: 0;
+  word-break: break-word;
 }
 
 .thinking-step.evidence {
@@ -1213,9 +1347,10 @@ body {
 
 .thinking.record-mode.done .thinking-body,
 .thinking.record-mode.collapsed .thinking-body {
-  max-height: none;
+  max-height: min(420px, 50vh);
   padding: 8px 11px 11px;
   opacity: 1;
+  overflow-y: auto;
 }
 
 .menu-item.menu-toggle-item.active {

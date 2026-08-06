@@ -1,4 +1,4 @@
-import { renderMarkdown } from "/static/markdown.js?v=15";
+import { renderMarkdown } from "/static/markdown.js?v=16";
 
 const ASSET_VERSION = "13";
 const TOKEN_KEY = "deepticket_token";
@@ -18,6 +18,17 @@ const ACTIVITY_ICONS = {
   system: "◆",
   default: "•",
 };
+
+const CONFIDENCE_ANALYSIS_KINDS = new Set([
+  "log",
+  "config",
+  "code",
+  "skill",
+  "search",
+  "terminal",
+  "evidence",
+  "error",
+]);
 
 const ICONS = {
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>',
@@ -258,6 +269,34 @@ function addToolbar(body, rawText) {
   body.appendChild(bar);
 }
 
+function shouldShowConfidence(confidence, activities) {
+  if (!confidence || confidence.score == null) return false;
+  if (confidence.applicable === false) return false;
+  if (Array.isArray(activities) && activities.length) {
+    return activities.some((item) => CONFIDENCE_ANALYSIS_KINDS.has(item.kind || "default"));
+  }
+  return confidence.applicable === true;
+}
+
+function renderConfidenceBadge(confidence) {
+  if (!confidence || confidence.score == null) return null;
+  const badge = document.createElement("div");
+  const level = confidence.level || "medium";
+  badge.className = `confidence-badge confidence-${level}`;
+  const reasons = Array.isArray(confidence.reasons) ? confidence.reasons : [];
+  if (reasons.length) badge.title = reasons.join("\n");
+  badge.innerHTML = `<span class="confidence-label">置信度</span><strong>${escapeHtml(confidence.label || "—")}</strong><span class="confidence-score">${confidence.score}%</span>`;
+  return badge;
+}
+
+function attachConfidence(body, confidence, activities = null) {
+  const existing = body.querySelector(".confidence-badge");
+  if (existing) existing.remove();
+  if (!shouldShowConfidence(confidence, activities)) return;
+  const badge = renderConfidenceBadge(confidence);
+  if (badge) body.appendChild(badge);
+}
+
 function createAssistantShell(withThinking, options = {}) {
   const { row, body, content } = createMessageRow("assistant");
   let thinking = null;
@@ -287,8 +326,129 @@ function bindCodeCopy(container) {
 }
 
 /* Thinking 块 — 展示 Agent 实时活动（来自 SSE activity 事件） */
-function createThinkingBlock(options = {}) {
-  const keepExpanded = Boolean(options.recordMode);
+
+function createThinkingStepEl(item, { isLast, iconFor }) {
+  const step = document.createElement("div");
+  step.className = "thinking-step";
+  if (item.kind === "evidence") step.classList.add("evidence");
+  if (item.kind === "handoff") step.classList.add("handoff");
+  if (item.kind === "error") step.classList.add("error");
+  step.classList.add(isLast ? "current" : "done");
+  step.innerHTML = `<span class="step-icon">${iconFor(item.kind)}</span><span class="step-text">${escapeHtml(item.text)}</span>`;
+  return step;
+}
+
+function updateThinkingScrollState(bodyEl, tabScrollEl) {
+  if (bodyEl) {
+    const { scrollTop, scrollHeight, clientHeight } = bodyEl;
+    bodyEl.classList.toggle("can-scroll-top", scrollTop > 6);
+    bodyEl.classList.toggle("can-scroll-bottom", scrollTop + clientHeight < scrollHeight - 6);
+  }
+  if (tabScrollEl) {
+    const { scrollLeft, scrollWidth, clientWidth } = tabScrollEl;
+    tabScrollEl.classList.toggle("can-scroll-end", scrollLeft + clientWidth < scrollWidth - 6);
+  }
+}
+
+function scrollThinkingPanel({ bodyEl, tabScrollEl, stickBody = true }) {
+  if (bodyEl && stickBody) {
+    bodyEl.scrollTop = bodyEl.scrollHeight;
+  }
+  if (tabScrollEl) {
+    tabScrollEl.scrollLeft = tabScrollEl.scrollWidth;
+  }
+  updateThinkingScrollState(bodyEl, tabScrollEl);
+}
+
+function bindThinkingInteractions(root, { bodyEl, tabScrollEl, toggleEl }) {
+  let stickBody = true;
+  let tabDragged = false;
+  let tabDragStartX = 0;
+
+  bodyEl.addEventListener(
+    "scroll",
+    () => {
+      stickBody = bodyEl.scrollHeight - bodyEl.scrollTop - bodyEl.clientHeight < 28;
+      updateThinkingScrollState(bodyEl, tabScrollEl);
+    },
+    { passive: true },
+  );
+
+  tabScrollEl.addEventListener(
+    "scroll",
+    () => updateThinkingScrollState(bodyEl, tabScrollEl),
+    { passive: true },
+  );
+
+  tabScrollEl.addEventListener("wheel", (event) => {
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.preventDefault();
+    tabScrollEl.scrollLeft += event.deltaY;
+  }, { passive: false });
+
+  tabScrollEl.addEventListener("pointerdown", (event) => {
+    tabDragStartX = event.clientX;
+    tabDragged = false;
+  });
+
+  tabScrollEl.addEventListener("pointermove", (event) => {
+    if (Math.abs(event.clientX - tabDragStartX) > 8) tabDragged = true;
+  });
+
+  toggleEl.addEventListener("click", (event) => {
+    if (tabDragged && event.target.closest(".thinking-tab-scroll")) {
+      event.preventDefault();
+      tabDragged = false;
+      return;
+    }
+    root.classList.toggle("collapsed");
+    if (!root.classList.contains("collapsed")) {
+      requestAnimationFrame(() => scrollThinkingPanel({ bodyEl, tabScrollEl, stickBody: true }));
+    }
+  });
+
+  return {
+    shouldStickBody: () => stickBody,
+    resetStickBody: () => {
+      stickBody = true;
+    },
+  };
+}
+
+function syncThinkingSteps(stepsEl, activities, iconFor, { markLastCurrent = true } = {}) {
+  const iconFn = iconFor;
+  if (!activities.length) {
+    stepsEl.innerHTML = `<div class="thinking-step current"><span class="step-icon">${iconFn("system")}</span><span class="step-text">等待 Agent 响应…</span></div>`;
+    return;
+  }
+
+  while (stepsEl.children.length > activities.length) {
+    stepsEl.lastElementChild?.remove();
+  }
+
+  activities.forEach((item, idx) => {
+    const isLast = idx === activities.length - 1;
+    let step = stepsEl.children[idx];
+    if (!step) {
+      step = createThinkingStepEl(item, { isLast: isLast && markLastCurrent, iconFor: iconFn });
+      stepsEl.appendChild(step);
+      return;
+    }
+    step.className = "thinking-step";
+    if (item.kind === "evidence") step.classList.add("evidence");
+    if (item.kind === "handoff") step.classList.add("handoff");
+    if (item.kind === "error") step.classList.add("error");
+    step.classList.add(isLast && markLastCurrent ? "current" : "done");
+    const textEl = step.querySelector(".step-text");
+    if (textEl && textEl.textContent !== item.text) {
+      textEl.textContent = item.text;
+    }
+    const iconEl = step.querySelector(".step-icon");
+    if (iconEl) iconEl.textContent = iconFn(item.kind);
+  });
+}
+
+function buildThinkingShell({ keepExpanded = false, label = "正在准备", showElapsed = true } = {}) {
   const root = document.createElement("div");
   root.className = "thinking active";
   if (keepExpanded) root.classList.add("record-mode");
@@ -296,8 +456,11 @@ function createThinkingBlock(options = {}) {
     <button type="button" class="thinking-toggle">
       <span class="thinking-spinner"></span>
       <span class="thinking-check">✓</span>
-      <span class="thinking-label">正在准备</span>
-      <span class="thinking-elapsed">0s</span>
+      <div class="thinking-tab-scroll" aria-label="思考步骤摘要">
+        <span class="thinking-label">${escapeHtml(label)}</span>
+      </div>
+      <span class="thinking-step-count"></span>
+      ${showElapsed ? '<span class="thinking-elapsed">0s</span>' : ""}
       <span class="thinking-chevron">${ICONS.chevron}</span>
     </button>
     <div class="thinking-body">
@@ -306,44 +469,54 @@ function createThinkingBlock(options = {}) {
     </div>
   `;
 
-  const toggle = root.querySelector(".thinking-toggle");
+  const toggleEl = root.querySelector(".thinking-toggle");
+  const bodyEl = root.querySelector(".thinking-body");
+  const tabScrollEl = root.querySelector(".thinking-tab-scroll");
   const stepsEl = root.querySelector(".thinking-steps");
-  const elapsedEl = root.querySelector(".thinking-elapsed");
   const labelEl = root.querySelector(".thinking-label");
+  const countEl = root.querySelector(".thinking-step-count");
+  const elapsedEl = root.querySelector(".thinking-elapsed");
+  const interaction = bindThinkingInteractions(root, { bodyEl, tabScrollEl, toggleEl });
+
+  return { root, toggleEl, bodyEl, tabScrollEl, stepsEl, labelEl, countEl, elapsedEl, interaction };
+}
+
+function createThinkingBlock(options = {}) {
+  const keepExpanded = Boolean(options.recordMode);
+  const {
+    root,
+    bodyEl,
+    tabScrollEl,
+    stepsEl,
+    labelEl,
+    countEl,
+    elapsedEl,
+    interaction,
+  } = buildThinkingShell({ keepExpanded, label: "正在准备", showElapsed: true });
+
   const activities = [];
   let currentActivity = "";
   let currentKind = "default";
 
-  toggle.addEventListener("click", () => root.classList.toggle("collapsed"));
-
   const iconFor = (kind) => ACTIVITY_ICONS[kind] || ACTIVITY_ICONS.default;
 
   const renderSteps = () => {
-    stepsEl.innerHTML = "";
-    if (!activities.length) {
-      const empty = document.createElement("div");
-      empty.className = "thinking-step current";
-      empty.innerHTML = `<span class="step-icon">${iconFor("system")}</span><span>等待 Agent 响应…</span>`;
-      stepsEl.appendChild(empty);
-      return;
+    syncThinkingSteps(stepsEl, activities, iconFor);
+    if (countEl) {
+      countEl.textContent = activities.length ? String(activities.length) : "";
+      countEl.classList.toggle("visible", activities.length > 1);
     }
-    activities.forEach((item, idx) => {
-      const step = document.createElement("div");
-      step.className = "thinking-step";
-      const isLast = idx === activities.length - 1;
-      if (item.kind === "evidence") step.classList.add("evidence");
-      if (item.kind === "handoff") step.classList.add("handoff");
-      if (item.kind === "error") step.classList.add("error");
-      if (isLast) step.classList.add("current");
-      else step.classList.add("done");
-      step.innerHTML = `<span class="step-icon">${iconFor(item.kind)}</span><span>${escapeHtml(item.text)}</span>`;
-      stepsEl.appendChild(step);
+    scrollThinkingPanel({
+      bodyEl,
+      tabScrollEl,
+      stickBody: interaction.shouldStickBody(),
     });
     scrollToBottom();
   };
 
   const startedAt = Date.now();
   const elapsedTimer = window.setInterval(() => {
+    if (!elapsedEl) return;
     elapsedEl.textContent = `${Math.max(1, Math.round((Date.now() - startedAt) / 1000))}s`;
   }, 250);
 
@@ -369,7 +542,7 @@ function createThinkingBlock(options = {}) {
     finish(contentStarted = false) {
       window.clearInterval(elapsedTimer);
       const seconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      elapsedEl.textContent = `${seconds}s`;
+      if (elapsedEl) elapsedEl.textContent = `${seconds}s`;
       root.classList.remove("active");
       root.classList.add("done");
       stepsEl.querySelectorAll(".thinking-step").forEach((el) => {
@@ -377,15 +550,21 @@ function createThinkingBlock(options = {}) {
         el.classList.add("done");
       });
       root.querySelector(".thinking-shimmer")?.remove();
+      const stepCount = activities.length;
       if (contentStarted) {
-        labelEl.textContent = currentActivity
-          ? `已完成 · ${seconds}s`
+        labelEl.textContent = stepCount
+          ? `思考完成 · ${stepCount} 步 · ${seconds}s`
           : `思考用时 ${seconds}s`;
       } else {
-        labelEl.textContent = currentActivity
-          ? `已完成 · ${seconds}s`
+        labelEl.textContent = stepCount
+          ? `运行完成 · ${stepCount} 步 · ${seconds}s`
           : `运行 ${seconds}s`;
       }
+      if (countEl) {
+        countEl.textContent = stepCount ? String(stepCount) : "";
+        countEl.classList.toggle("visible", stepCount > 1);
+      }
+      scrollThinkingPanel({ bodyEl, tabScrollEl, stickBody: true });
       if (!keepExpanded) {
         window.setTimeout(() => root.classList.add("collapsed"), contentStarted ? 2500 : 4000);
       }
@@ -397,33 +576,21 @@ function createThinkingBlock(options = {}) {
 }
 
 function createStaticThinkingBlock(activities) {
-  const root = document.createElement("div");
-  root.className = "thinking done collapsed";
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.className = "thinking-toggle";
-  toggle.innerHTML = `
-    <span class="thinking-check">✓</span>
-    <span class="thinking-label">Agent 步骤（${activities.length}）</span>
-    <span class="thinking-chevron">${ICONS.chevron}</span>
-  `;
-  const body = document.createElement("div");
-  body.className = "thinking-body";
-  const stepsEl = document.createElement("div");
-  stepsEl.className = "thinking-steps";
-  const iconFor = (kind) => ACTIVITY_ICONS[kind] || ACTIVITY_ICONS.default;
-  activities.forEach((item, idx) => {
-    const step = document.createElement("div");
-    step.className = "thinking-step done";
-    if (item.kind === "error") step.classList.add("error");
-    if (idx === activities.length - 1) step.classList.add("current");
-    step.innerHTML = `<span class="step-icon">${iconFor(item.kind)}</span><span>${escapeHtml(item.text)}</span>`;
-    stepsEl.appendChild(step);
+  const safeActivities = Array.isArray(activities) ? activities : [];
+  const { root, bodyEl, tabScrollEl, stepsEl, labelEl, countEl } = buildThinkingShell({
+    keepExpanded: false,
+    label: `Agent 步骤（${safeActivities.length}）`,
+    showElapsed: false,
   });
-  body.appendChild(stepsEl);
-  root.appendChild(toggle);
-  root.appendChild(body);
-  toggle.addEventListener("click", () => root.classList.toggle("collapsed"));
+
+  root.className = "thinking done collapsed";
+  const iconFor = (kind) => ACTIVITY_ICONS[kind] || ACTIVITY_ICONS.default;
+  syncThinkingSteps(stepsEl, safeActivities, iconFor, { markLastCurrent: false });
+  if (countEl) {
+    countEl.textContent = safeActivities.length ? String(safeActivities.length) : "";
+    countEl.classList.toggle("visible", safeActivities.length > 1);
+  }
+  requestAnimationFrame(() => scrollThinkingPanel({ bodyEl, tabScrollEl, stickBody: false }));
   return root;
 }
 
@@ -440,6 +607,7 @@ function renderHistory(messages) {
       content.innerHTML = renderMarkdown(item.content);
       bindCodeCopy(content);
       addToolbar(body, item.content);
+      attachConfidence(body, item.confidence, item.activities);
     }
   }
   updateEmptyState();
@@ -703,6 +871,8 @@ async function sendMessage(text) {
   let assistantText = "";
   let contentStarted = false;
   let renderScheduled = false;
+  let latestConfidence = null;
+  const chatActivities = [];
 
   const flushRender = () => {
     renderScheduled = false;
@@ -769,6 +939,9 @@ async function sendMessage(text) {
       buffer = parts.pop() || "";
 
       for (const part of parts) {
+        if (part.startsWith("event: ping")) {
+          continue;
+        }
         if (part.startsWith("event: activity")) {
           const line = part.split("\n").find((l) => l.startsWith("data: "));
           if (line) {
@@ -776,11 +949,22 @@ async function sendMessage(text) {
               const meta = JSON.parse(line.slice(6));
               if (meta.activity) {
                 const kind = meta.kind || "default";
+                chatActivities.push({ text: meta.activity, kind });
                 thinking.addActivity(meta.activity, kind);
                 if (kind === "error") setStatus("Agent 异常", "error");
                 scrollToBottom();
                 await new Promise((resolve) => requestAnimationFrame(resolve));
               }
+            } catch { /* 忽略 */ }
+          }
+          continue;
+        }
+        if (part.startsWith("event: confidence")) {
+          const line = part.split("\n").find((l) => l.startsWith("data: "));
+          if (line) {
+            try {
+              latestConfidence = JSON.parse(line.slice(6));
+              attachConfidence(body, latestConfidence, chatActivities);
             } catch { /* 忽略 */ }
           }
           continue;
@@ -842,6 +1026,7 @@ async function sendMessage(text) {
       content.innerHTML = renderMarkdown(assistantText);
       bindCodeCopy(content);
       addToolbar(body, assistantText);
+      if (latestConfidence) attachConfidence(body, latestConfidence, chatActivities);
     }
 
     setStatus("就绪");
@@ -868,6 +1053,7 @@ async function sendMessage(text) {
       if (Array.isArray(recovered.activities) && recovered.activities.length) {
         body.insertBefore(createStaticThinkingBlock(recovered.activities), content);
       }
+      if (recovered.confidence) attachConfidence(body, recovered.confidence, recovered.activities);
       setStatus("已从服务端恢复回复", "ready");
       await refreshChats();
       return;

@@ -46,6 +46,12 @@ class WebSettings(BaseModel):
         ],
         description="允许的浏览器 Origin；生产请改为实际域名",
     )
+    sse_heartbeat_seconds: float = Field(
+        default=15.0,
+        ge=0,
+        le=120,
+        description="SSE ping 间隔（秒），防止网关 idle 断连；0 表示关闭",
+    )
 
 
 class AuthSettings(BaseModel):
