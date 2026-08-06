@@ -21,7 +21,7 @@
 
 - **Ingress** — 监控 / 工单 HTTP 推送，异步队列 + API Key
 - **Outbound** — 分析结果 Webhook 回写或仅存库
-- **Workbench** — 多轮追问、贴日志、截图 URL
+- **Workbench** — 多轮追问、贴日志、截图 URL；分析类对话展示置信度；SSE 心跳防网关断连
 
 ---
 
@@ -54,7 +54,7 @@ DeepTicket 的定位：**在 OpenHands 之上做编排层** — 统一 Ingress �
 | 对接配置中心 | 弱 | 有限 | ✅ config-query Skill / MCP（需自行配置） |
 | 工单 / 告警自动触发 | ❌ | 部分 | ✅ Ingress + 异步队列 |
 | 结论回写 ITSM | ❌ | 部分 | ✅ Webhook Outbound |
-| 工程师多轮协作 | 聊天 | 弱 | ✅ Web 工作台 + SSE |
+| 工程师多轮协作 | 聊天 | 弱 | ✅ Web 工作台 + SSE + 分析置信度 |
 | 开箱即用程度 | 中 | SaaS 较高 | ⚠️ 需 yaml + LLM + 集成（Alpha） |
 
 ---
@@ -114,6 +114,7 @@ bash scripts/start_all.sh      # 启动 Web（8600）+ Agent Server（8100，本
 | `knowledge.repos` | 只读 Git 仓库（代码分析） |
 | `ingress` | 外部工单/告警接入与 Webhook 回写 |
 | `storage` | 本地或 Redis |
+| `web` | 工作台 SSE 心跳间隔（`sse_heartbeat_seconds`） |
 | `extensions` / `mcp` | Skill 与 MCP 扩展 |
 
 日志、配置中心对接请改 `log-query` / `config-query` Skill 模板，或接 MCP。字段说明见 **`deepticket.example.yaml`** 内注释。
@@ -122,7 +123,7 @@ bash scripts/start_all.sh      # 启动 Web（8600）+ Agent Server（8100，本
 
 ## 使用方式
 
-**Web 工作台** — 登录 → 新建对话 → 描述问题或粘贴日志 → 需要时「同步知识库」→ 多轮追问直至缩小范围。设置里可开 **录屏模式**，Agent 步骤会保持展开。
+**Web 工作台** — 登录 → 新建对话 → 描述问题或粘贴日志 → 需要时「同步知识库」→ 多轮追问直至缩小范围。设置里可开 **录屏模式**，Agent 步骤会保持展开；含读代码/查日志等验证步骤的分析对话会展示 **置信度** 徽章（纯寒暄不展示）。网关前部署时可在 `deepticket.yaml` 配置 **`web.sse_heartbeat_seconds`** 保持 SSE 长连接。
 
 **外部系统自动化** — 监控/ITSM/Jira 等 HTTP 推送事件，DeepTicket 异步分析后 Webhook 回写或仅存库；一般只需改 yaml，不必改主程序。本地联调：`bash scripts/test_ingress_e2e.sh`。
 

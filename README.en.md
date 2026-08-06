@@ -21,7 +21,7 @@
 
 - **Ingress** — HTTP events from monitoring / ITSM, async queue + API key
 - **Outbound** — Webhook to ITSM or store-only
-- **Workbench** — Multi-turn chat, logs, screenshot URLs
+- **Workbench** — Multi-turn chat, logs, screenshot URLs; confidence badge on analysis runs; SSE heartbeat for reverse proxies
 
 ---
 
@@ -60,7 +60,7 @@ DeepTicket is an **orchestration layer on OpenHands**: unified ingress, webhook 
 | Config center | Weak | Limited | ✅ config-query Skill / MCP (you configure) |
 | Auto-trigger from alerts/tickets | ❌ | Partial | ✅ Ingress + async queue |
 | Write back to ITSM | ❌ | Partial | ✅ Webhook outbound |
-| Engineer multi-turn chat | Chat | Weak | ✅ Web workbench + SSE |
+| Engineer multi-turn chat | Chat | Weak | ✅ Web workbench + SSE + analysis confidence |
 | Out-of-the-box | Medium | Higher (SaaS) | ⚠️ yaml + LLM + integration (alpha) |
 
 ---
@@ -118,6 +118,7 @@ Everything lives in **`deepticket.yaml`** (copy from `deepticket.example.yaml`; 
 | `knowledge.repos` | Read-only Git repos |
 | `ingress` | External tickets/alerts in, Webhook out |
 | `storage` | Local or Redis |
+| `web` | Workbench SSE heartbeat interval (`sse_heartbeat_seconds`) |
 | `extensions` / `mcp` | Skills and MCP |
 
 Wire logs/config via `log-query` / `config-query` Skill templates or MCP. See **`deepticket.example.yaml`** for field comments.
@@ -126,7 +127,7 @@ Wire logs/config via `log-query` / `config-query` Skill templates or MCP. See **
 
 ## Usage
 
-**Web workbench** — Log in → new chat → describe the issue or paste logs → sync knowledge when needed → iterate. Enable **record mode** in settings to keep Agent steps expanded for demos.
+**Web workbench** — Log in → new chat → describe the issue or paste logs → sync knowledge when needed → iterate. Enable **record mode** in settings to keep Agent steps expanded for demos. **Confidence** badges appear on analysis runs with verification steps (hidden for casual chat). Set **`web.sse_heartbeat_seconds`** in `deepticket.yaml` when deploying behind idle-timeout proxies.
 
 **Automation** — Push events from monitoring/ITSM; DeepTicket analyzes asynchronously and callbacks via Webhook or store-only. Usually yaml only, no core code changes. Local test: `bash scripts/test_ingress_e2e.sh`.
 

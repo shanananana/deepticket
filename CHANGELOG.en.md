@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.1.2] - 2026-08-06
+
+### Added
+
+- **Analysis confidence**: heuristic score (0–100) from agent steps (code/log/config reads, etc.) and reply text; streamed via `event: confidence` with a workbench badge; **hidden for pure chat**, shown for tickets/Ingress or when verification steps exist
+- **SSE heartbeat**: configurable `web.sse_heartbeat_seconds` (default 15s, `0` to disable) sends periodic `event: ping` to survive idle timeouts behind reverse proxies
+- **Tests**: `test_confidence`, `test_sse_streaming`, etc. (79 cases total)
+
+### Changed
+
+- **Thinking panel UX**: horizontally scrollable summary tab, vertically scrollable step list, incremental step rendering, step-count summary when done
+
+---
+
 ## [0.1.1] - 2026-08-04
 
 ### Added
@@ -62,5 +76,7 @@ First public **Alpha** release.
 - [中文更新日志](CHANGELOG.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
 
+[0.1.2]: https://github.com/shanananana/deepticket/compare/v0.1.1...v0.1.2
+[0.1.2]: https://github.com/shanananana/deepticket/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/shanananana/deepticket/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/shanananana/deepticket/releases/tag/v0.1.0

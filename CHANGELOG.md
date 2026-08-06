@@ -6,6 +6,34 @@
 
 ---
 
+## [0.1.2] - 2026-08-06
+
+### Added
+
+- **分析置信度**：基于 Agent 步骤（读代码/日志/配置等）与回复内容估算 0–100 分，流式 `event: confidence` 推送并在工作台展示徽章；**纯聊天默认隐藏**，工单/Ingress 或有验证步骤时展示
+- **SSE 心跳**：可配置 `web.sse_heartbeat_seconds`（默认 15s，`0` 关闭），周期性 `event: ping`，防止 Nginx/网关 idle 断连
+- **测试**：`test_confidence`、`test_sse_streaming` 等，共 79 项用例
+
+### Changed
+
+- **思考过程 UI**：头部摘要 tab 支持横向滑动，步骤列表支持纵向滚动与增量渲染；完成后显示步数摘要
+
+---
+
+## [0.1.2] - 2026-08-06
+
+### Added
+
+- **分析置信度**：基于 Agent 步骤（读代码/日志/配置等）与回复内容估算 0–100 分，流式 `event: confidence` 推送并在工作台展示徽章；**纯聊天默认隐藏**，工单/Ingress 或有验证步骤时展示
+- **SSE 心跳**：可配置 `web.sse_heartbeat_seconds`（默认 15s，`0` 关闭），周期性 `event: ping`，防止 Nginx/网关 idle 断连
+- **测试**：`test_confidence`、`test_sse_streaming` 等，共 79 项用例
+
+### Changed
+
+- **思考过程 UI**：头部摘要 tab 支持横向滑动，步骤列表支持纵向滚动与增量渲染；完成后显示步数摘要
+
+---
+
 ## [0.1.1] - 2026-08-04
 
 ### Added
@@ -62,5 +90,7 @@
 - [English Changelog](CHANGELOG.en.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
 
+[0.1.2]: https://github.com/shanananana/deepticket/compare/v0.1.1...v0.1.2
+[0.1.2]: https://github.com/shanananana/deepticket/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/shanananana/deepticket/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/shanananana/deepticket/releases/tag/v0.1.0
