@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          BODY="$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { capture=1; next }
+            capture && /^## \[/ { exit }
+            capture && /^---$/ { exit }
+            capture { print }
+          ' CHANGELOG.md)"
+          if [[ -z "${BODY//[[:space:]]/}" ]]; then
+            echo "No CHANGELOG section for ${VERSION}" >&2
+            exit 1
+          fi
+          TITLE_LINE="$(printf '%s\n' "$BODY" | awk '
+            /^### Added$/ { in_added=1; next }
+            in_added && /^- \*\*/ {
+              gsub(/^- \*\*/, "", $0)
+              gsub(/\*\*.*/, "", $0)
+              gsub(/:.*/, "", $0)
+              print $0
+              exit
+            }
+          ')"
+          if [[ -n "$TITLE_LINE" ]]; then
+            TITLE="${TAG} — ${TITLE_LINE}"
+          else
+            TITLE="${TAG}"
+          fi
+          {
+            echo "title<<EOF"
+            echo "$TITLE"
+            echo "EOF"
+            echo "body<<EOF"
+            echo "$BODY"
+            echo ""
+            echo "完整说明见 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${TAG}/CHANGELOG.md)。"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ steps.notes.outputs.title }}
+          body: ${{ steps.notes.outputs.body }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false

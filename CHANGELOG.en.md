@@ -76,6 +76,6 @@ First public **Alpha** release.
 - [中文更新日志](CHANGELOG.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
 
-[0.1.2]: https://github.com/shanananana/deepticket/compare/v0.1.1...v0.1.2
+[0.1.2]: https://github.com/shanananana/deepticket/releases/tag/v0.1.2
 [0.1.1]: https://github.com/shanananana/deepticket/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/shanananana/deepticket/releases/tag/v0.1.0

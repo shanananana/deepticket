@@ -3,6 +3,8 @@
   ·
   <a href="CHANGELOG.en.md">Changelog</a>
   ·
+  <a href="https://github.com/shanananana/deepticket/releases">Releases</a>
+  ·
   <a href="https://github.com/shanananana/deepticket/stargazers">GitHub Stars</a>
   ·
   <a href="https://github.com/OpenHands/OpenHands">OpenHands</a>
@@ -12,19 +14,21 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.11+-blue" alt="Python 3.11+">
+  <img src="https://img.shields.io/github/v/release/shanananana/deepticket?label=release" alt="Latest release">
   <img src="https://img.shields.io/badge/OpenHands-1.39.1-purple" alt="OpenHands 1.39.1">
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="Alpha">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**An intelligent Agent platform for production incidents and project Q&A** — an **Ingress / Webhook orchestration layer** on [OpenHands](https://github.com/OpenHands/OpenHands) so agents ground answers in **Git source + logs + config**, not RAG guesses alone.
+**A self-hosted SRE Agent orchestration layer for business teams** ([latest v0.1.2](https://github.com/shanananana/deepticket/releases/tag/v0.1.2)) — **does not replace** company-wide AIOps / Copilot platforms. It plugs into your existing **MCP servers, logs, config center, and ITSM** on [OpenHands](https://github.com/OpenHands/OpenHands) with Ingress/Webhook loops so agents triage on **Git source + logs + config** with auditable reasoning, Thinking steps, and **analysis confidence**.
 
-Keywords: AIOps · SRE · on-call · incident triage · root cause analysis · LLM agent · MCP · FastAPI
+Keywords: AIOps · SRE · on-call · enterprise · business team · self-hosted · MCP integration · orchestration · incident triage · root cause analysis · LLM agent · FastAPI
 
-- **Ingress** — HTTP events from monitoring / Jira / ITSM, async queue + API key
-- **Outbound** — Webhook to ITSM or store-only
-- **Workbench** — Multi-turn chat, log paste, Thinking steps, analysis confidence; SSE heartbeat for reverse proxies
-- **Example** — Vertical agent reference: [ad_agent](https://github.com/shanananana/ad_agent) (Spring AI ad ops); DeepTicket is the ops orchestration layer
+- **Thin orchestration layer** — Self-hosted deployment, yaml wiring; **coexists** with monitoring / ITSM / config—no fight for the “platform agent” slot
+- **MCP / Skill extensions** — Mount internal MCP (logs, config, CMDB…) that platform agents rarely expose at this granularity
+- **Ingress / Outbound** — Alerts and tickets in; analysis back via Webhook
+- **Workbench** — Multi-turn chat, Thinking steps, confidence; SSE heartbeat for proxies
+- **Example** — Vertical agent: [ad_agent](https://github.com/shanananana/ad_agent); DeepTicket **wires infra + runs the SRE pipeline**
 
 <p align="center">
   <a href="docs/quickstart-demo.md"><strong>5-minute quick start</strong></a>
@@ -73,23 +77,44 @@ Three common failure modes in incident triage and project Q&A:
 2. **Traditional ticket AI** — Good at summaries and routing, rarely reads **real Git repos** or wires into internal log/config systems.  
 3. **Raw OpenHands** — Powerful Agent runtime, but no Ingress/Webhook, routing, knowledge sync, or single-file ops config for ITSM loops.
 
-DeepTicket is an **orchestration layer on OpenHands**: unified ingress, webhook outbound, Git knowledge base, and Skill/MCP extensions so the Agent grounds answers in **source + (optional) logs + (optional) config**.
+DeepTicket is a **team-level thin orchestration layer** on OpenHands: ingress, webhook outbound, Git knowledge, and Skill/MCP extensions so the Agent grounds answers in **source + (optional) logs + (optional) config**.
 
-> **Alpha honesty:** Log/config Skills ship as templates—you wire your APIs for full “three-source” verification. Git repos alone unlock code-level triage and Q&A.
+> **Note:** Alpha stage. Set an **LLM API key** and mount **one or more Git repos** in `knowledge.repos` to run code-level triage; log/config MCP and Skills are **optional extensions**, not required day one.
+
+---
+
+## Why it fits enterprise business teams
+
+Company-wide agents (Copilot portals, unified AI platforms) optimize for **breadth**: docs, chat, generic coding help. DeepTicket is intentionally **narrow and deep** for on-call—**read source → query logs → check config → write back to tickets** in one verifiable flow.
+
+Mature orgs already have rich infra. DeepTicket **does not fight it**:
+
+| What you already have | What DeepTicket does |
+|-----------------------|----------------------|
+| Log platform (ELK / Loki / internal) | Query via `log-query` Skill or **MCP**—no new index |
+| Config center / Apollo / Nacos | Pull runtime config via Skill or **MCP** |
+| ITSM / Jira / internal tickets | **Ingress in, Webhook out**—same workflow |
+| Internal MCP servers (CMDB, deploy, monitoring…) | Mount in `deepticket.yaml`; agent calls on demand |
+| Company AIOps / Copilot platform | **Coexist**—self-hosted team layer, no platform roadmap dependency |
+
+**Typical rollout:** a business team clones DeepTicket → fills `deepticket.yaml` (LLM key + **multiple team Git repos**) → mounts internal MCP / Skills **as needed** → on-call uses the workbench; monitoring/tickets flow through Ingress. Data stays in the team—**no waiting on company-wide agent platform scheduling**.
+
+Vertical agents like [ad_agent](https://github.com/shanananana/ad_agent) handle domain chat; DeepTicket **wires infra and runs the SRE pipeline**—they compose, not compete.
 
 ---
 
 ## Comparison
 
-| Capability | Pure RAG | Traditional ticket AI | **DeepTicket** |
-|------------|:--------:|:-----------------------:|:--------------:|
-| Read real Git / call chains | Stale chunks | Usually no | ✅ Read-only clone + Agent |
-| Production logs | Manual ingest | Limited | ✅ log-query Skill / MCP (you configure) |
-| Config center | Weak | Limited | ✅ config-query Skill / MCP (you configure) |
-| Auto-trigger from alerts/tickets | ❌ | Partial | ✅ Ingress + async queue |
-| Write back to ITSM | ❌ | Partial | ✅ Webhook outbound |
-| Engineer multi-turn chat | Chat | Weak | ✅ Web workbench + SSE + analysis confidence |
-| Out-of-the-box | Medium | Higher (SaaS) | ⚠️ yaml + LLM + integration (alpha) |
+| Capability | Pure RAG | Platform-wide agent | Traditional ticket AI | **DeepTicket** |
+|------------|:--------:|:---------------------:|:-----------------------:|:--------------:|
+| Positioning | Doc chunks | Company Copilot, broad & shallow | Summarize / route | **Team SRE orchestration, narrow & deep** |
+| Read real Git / call chains | Stale chunks | Limited / generic chat | Usually no | ✅ Read-only clone + Agent |
+| Production logs / config | Manual ingest | Rarely internal MCP granularity | Limited | ✅ Skill / **MCP** (your existing services) |
+| Coexist with ITSM / monitoring | ❌ | Often tied to one platform | Partial | ✅ Ingress + Webhook, **incremental wiring** |
+| Team self-host / pilot | Medium | Wait for platform roadmap | SaaS-first | ✅ Self-host + yaml, multiple repos, **no platform slot fight** |
+| Auto-trigger from alerts/tickets | ❌ | Weak | Partial | ✅ Ingress + async queue |
+| Engineer chat + confidence | Chat | Yes | Weak | ✅ Workbench + SSE + confidence |
+| Out-of-the-box | Low (embeddings / vector DB / ingest) | High (SaaS) | Higher (SaaS) | ✅ LLM key + Git repos; log/config MCP optional |
 
 ---
 
@@ -165,6 +190,11 @@ bash scripts/verify.sh --online
 ---
 
 ## FAQ
+
+<details>
+<summary><strong>Is this for enterprise / business-team intranet? Will it conflict with company AIOps?</strong></summary>
+<p>DeepTicket is a <strong>thin orchestration layer</strong>, not another platform agent meant to replace company tools. It chains your existing logs, config, ITSM, and internal <strong>MCP</strong> services into one triage flow via Ingress/Webhook and Skills—<strong>no new monitoring stack, no Copilot roadmap dependency</strong>. Ideal for a self-hosted team pilot: yaml config, data stays in the team. Platform agents go broad; DeepTicket goes deep on on-call—source, logs, config, ticket write-back.</p>
+</details>
 
 <details>
 <summary><strong>How is DeepTicket related to OpenHands?</strong></summary>

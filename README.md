@@ -3,6 +3,8 @@
   ·
   <a href="CHANGELOG.md">更新日志</a>
   ·
+  <a href="https://github.com/shanananana/deepticket/releases">Releases</a>
+  ·
   <a href="https://github.com/shanananana/deepticket/stargazers">GitHub Stars</a>
   ·
   <a href="https://github.com/OpenHands/OpenHands">OpenHands</a>
@@ -12,19 +14,21 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.11+-blue" alt="Python 3.11+">
+  <img src="https://img.shields.io/github/v/release/shanananana/deepticket?label=release" alt="Latest release">
   <img src="https://img.shields.io/badge/OpenHands-1.39.1-purple" alt="OpenHands 1.39.1">
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="Alpha">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**面向线上故障与项目答疑的智能 Agent 平台** — 在 [OpenHands](https://github.com/OpenHands/OpenHands) 之上做 **Ingress / Webhook 编排**，让 Agent 基于 **Git 源码 + 日志 + 配置** 做可复核的根因分析，而不是纯 RAG 猜答案。
+**面向业务组内网部署的 SRE Agent 编排层**（[最新 v0.1.2](https://github.com/shanananana/deepticket/releases/tag/v0.1.2)）— **不替换**公司级 AIOps / Copilot 平台，而是接你们已有的 **MCP、日志、配置中心、ITSM**，在 [OpenHands](https://github.com/OpenHands/OpenHands) 之上做 Ingress/Webhook 闭环，让 Agent 在 **Git 源码 + 日志 + 配置** 三源上可复核排障；工作台含 Thinking 步骤与**分析置信度**。
 
-关键词：AIOps · SRE · on-call · 工单自动化 · 故障根因分析 · LLM Agent · MCP · FastAPI
+关键词：AIOps · SRE · on-call · 企业内网 · 业务组 · 自托管 · MCP 集成 · 编排层 · 工单自动化 · 故障根因分析 · LLM Agent · FastAPI
 
-- **Ingress** — 监控 / Jira / ITSM HTTP 推送，异步队列 + API Key
-- **Outbound** — 分析结果 Webhook 回写或仅存库
-- **Workbench** — 多轮追问、贴日志、Thinking 步骤、分析置信度；SSE 心跳防网关断连
-- **示例** — 垂类 Agent 可参考 [ad_agent](https://github.com/shanananana/ad_agent)（Spring AI 广告投放）；DeepTicket 负责编排与三源验证流水线
+- **薄编排层** — 自托管部署，yaml 增量接入；与监控 / ITSM / 配置中心**并存**，不抢平台 Agent 位子
+- **MCP / Skill 扩展** — 大厂常见内网 MCP（日志、配置、CMDB…）直接挂载；平台级 Agent 很少做到这个粒度
+- **Ingress / Outbound** — 告警 / 工单 HTTP 进，分析结论 Webhook 回写
+- **Workbench** — 多轮追问、Thinking 步骤、分析置信度；SSE 心跳适配网关
+- **示例** — 垂类 Agent 见 [ad_agent](https://github.com/shanananana/ad_agent)；DeepTicket 负责**接基建 + 跑排障流水线**
 
 <p align="center">
   <a href="docs/quickstart-demo.md"><strong>5 分钟上手</strong></a>
@@ -73,23 +77,44 @@ bash scripts/quickstart_demo.sh # 打印下一步；可选 ROI demo 说明
 2. **传统工单 AI** — 擅长摘要、分类、模板回复，很少基于**真实 Git 仓库**做代码级推理，也难接入内网日志 / 配置中心。  
 3. **把 OpenHands 直接丢给值班同学** — 能力强，但缺少 Ingress/Webhook、路由、知识库同步和统一配置，难和 ITSM / 监控闭环。
 
-DeepTicket 的定位：**在 OpenHands 之上做编排层** — 统一 Ingress 进、Webhook 出、Git 知识库、Skill/MCP 扩展，让 Agent 在「源码 +（可选）日志 +（可选）配置」上作答，而不是只靠模型猜测。
+DeepTicket 的定位：**业务组级薄编排层** — 统一 Ingress 进、Webhook 出、Git 知识库、Skill/MCP 扩展，让 Agent 在「源码 +（可选）日志 +（可选）配置」上作答，而不是只靠模型猜测。
 
-> **诚实说明：** 项目为 Alpha；日志 / 配置 Skill 默认为模板，需按你们环境对接后才有完整「三源验证」。接好 Git 仓库即可开始代码级排障与答疑。
+> **说明：** 项目为 Alpha。配好 **LLM API Key** 并在 `knowledge.repos` 挂载本组 **一个或多个 Git 仓库** 即可跑代码级排障；日志 / 配置 MCP 与 Skill **按需扩展**，不强制。
+
+---
+
+## 为什么更适合大厂业务组
+
+平台级通用 Agent（公司 Copilot、统一 AI 门户）擅长**广度**：文档问答、代码补全、通用聊天。DeepTicket 刻意做**窄而深**的 on-call 编排 — 一次故障里把 **读源码 → 查日志 → 对配置 → 回写工单** 串成可复核流程。
+
+成熟团队通常已有丰富基建，DeepTicket **不与之冲突**：
+
+| 你们已有的 | DeepTicket 做什么 |
+|------------|-------------------|
+| 日志平台（ELK / Loki / 自研） | 通过 `log-query` Skill 或 **MCP** 查询，不另建索引 |
+| 配置中心 / Apollo / Nacos | 通过 `config-query` Skill 或 **MCP** 拉运行时配置 |
+| ITSM / Jira / 自研工单 | **Ingress 进、Webhook 出**，不改原有流转 |
+| 内部 MCP Server（CMDB、发布、监控…） | `deepticket.yaml` 挂载，Agent 按需调用 |
+| 公司级 AIOps / Copilot 平台 | **并存** — DeepTicket 是业务组可自托管的编排层，不绑平台排期 |
+
+**典型落地形态：** 业务组 clone DeepTicket → 填 `deepticket.yaml`（LLM Key + 本组**多个 Git 仓库**）→ 按需挂内网 MCP / Skill → 值班用工作台，监控/工单走 Ingress。数据留在组内，**不必等公司级 Agent 平台排期**。
+
+垂类业务 Agent（如 [ad_agent](https://github.com/shanananana/ad_agent)）负责「懂业务对话」；DeepTicket 负责「**接基建、跑 SRE 流水线**」— 两者可组合，而不是二选一。
 
 ---
 
 ## 对比一览
 
-| 能力 | 纯 RAG 知识库 | 传统工单 AI | **DeepTicket** |
-|------|:-------------:|:-----------:|:--------------:|
-| 读真实 Git 源码 / 调用链 | 片段检索，易过时 | 通常不支持 | ✅ 只读 clone + Agent 读文件 |
-| 对接线上日志 | 需人工灌库 | 有限 | ✅ log-query Skill / MCP（需自行配置） |
-| 对接配置中心 | 弱 | 有限 | ✅ config-query Skill / MCP（需自行配置） |
-| 工单 / 告警自动触发 | ❌ | 部分 | ✅ Ingress + 异步队列 |
-| 结论回写 ITSM | ❌ | 部分 | ✅ Webhook Outbound |
-| 工程师多轮协作 | 聊天 | 弱 | ✅ Web 工作台 + SSE + 分析置信度 |
-| 开箱即用程度 | 中 | SaaS 较高 | ⚠️ 需 yaml + LLM + 集成（Alpha） |
+| 能力 | 纯 RAG 知识库 | 平台级通用 Agent | 传统工单 AI | **DeepTicket** |
+|------|:-------------:|:----------------:|:-----------:|:--------------:|
+| 定位 | 文档片段 | 公司统一 Copilot，广而浅 | 摘要 / 分类 | **业务组 SRE 编排，窄而深** |
+| 读真实 Git 源码 / 调用链 | 片段检索，易过时 | 有限 / 通用对话 | 通常不支持 | ✅ 只读 clone + Agent 读文件 |
+| 对接线上日志 / 配置 | 需人工灌库 | 通常无内网 MCP 粒度 | 有限 | ✅ Skill / **MCP**（挂你们已有服务） |
+| 与现有 ITSM / 监控并存 | ❌ | 常绑统一平台 | 部分 | ✅ Ingress + Webhook，**增量接入** |
+| 业务组自托管 / 独立试点 | 中 | 需等平台排期 | SaaS 为主 | ✅ 自托管 + yaml，挂多仓库，**不抢平台位子** |
+| 工单 / 告警自动触发 | ❌ | 弱 | 部分 | ✅ Ingress + 异步队列 |
+| 工程师多轮协作 + 置信度 | 聊天 | 有 | 弱 | ✅ 工作台 + SSE + 分析置信度 |
+| 开箱即用程度 | 低（embedding / 向量库 / 灌库） | 高（SaaS） | SaaS 较高 | ✅ LLM Key + Git 仓库即可跑；日志/配置 MCP 按需 |
 
 ---
 
@@ -169,6 +194,11 @@ bash scripts/verify.sh --online
 ## 常见问题
 
 <details>
+<summary><strong>适合大厂 / 业务组内网吗？会和公司 AIOps 平台冲突吗？</strong></summary>
+<p>DeepTicket 是<strong>薄编排层</strong>，不是又一个要替换全公司工具的平台级 Agent。它通过 Ingress/Webhook 和 Skill/<strong>MCP</strong> 把你们已有的日志、配置、ITSM、内部 MCP 服务串进一次排障流程，<strong>不另建监控栈、不绑 Copilot 排期</strong>。适合一个业务组自托管试点：yaml 配置、数据留在组内。平台 Agent 做广度，DeepTicket 做 on-call 深度 — 读源码、对日志、查配置、回写工单。</p>
+</details>
+
+<details>
 <summary><strong>DeepTicket 和 OpenHands 是什么关系？</strong></summary>
 <p>OpenHands 提供 Agent 运行时（读文件、终端、MCP）。DeepTicket 在其上增加多用户工作台、Git 知识库同步、Ingress 工单接入、Webhook 回写与路由分类，面向 SRE/值班场景。</p>
 </details>
@@ -185,7 +215,7 @@ bash scripts/verify.sh --online
 
 <details>
 <summary><strong>Alpha 阶段缺什么？</strong></summary>
-<p>日志/配置 Skill 默认为模板，需按内网环境对接 MCP 或脚本；公开生产案例仍在收集中。接好 Git 仓库即可做代码级分析。</p>
+<p>项目为 Alpha，公开生产案例仍在收集中。最小可用：<strong>LLM Key + Git 仓库</strong> 即可代码级分析；日志 / 配置 MCP 与 Skill 有模板，<strong>按需对接</strong>，不挡上手。</p>
 </details>
 
 ---

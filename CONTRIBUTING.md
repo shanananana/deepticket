@@ -54,6 +54,31 @@ ruff check deepticket tests
 
 ---
 
+## 发版流程 / Releases
+
+**推荐：打 tag 即自动发 Release**（推送 `v*` tag 后 GitHub Actions 从 `CHANGELOG.md` 生成 Release 说明）。
+
+维护者 checklist：
+
+1. 在 **`CHANGELOG.md`** / **`CHANGELOG.en.md`** 写好 `## [x.y.z]` 条目  
+2. 提交并合并到 `main`  
+3. 打 tag 并推送（会触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)）：
+
+```bash
+git tag -a v0.1.3 -m "v0.1.3"
+git push origin v0.1.3
+```
+
+本地预览 Release 标题/正文：
+
+```bash
+bash scripts/extract_changelog_release.sh v0.1.3
+```
+
+**不要**只 push tag 不写 CHANGELOG；workflow 找不到对应章节会失败。
+
+---
+
 ## 报告 Bug
 
 请包含：
