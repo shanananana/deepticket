@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [Unreleased]
+
+---
+
+## [0.2.0] - 2026-08-09
+
+### Added
+
+- **Multi-team / multi-project**: one instance for multiple teams; sidebar project switch; per-project knowledge base, MCP, and agents.md; Redis runtime config with yaml fallback
+- **Admin project settings**: dedicated sidebar entry alongside Token usage; create projects, manage members, sectional save for meta / repos / MCP / agents.md (load yaml defaults per section)
+- **Admin API**: `GET/PUT/PATCH /api/admin/projects/{id}` plus `/knowledge`, `/mcp`, `/extensions`, `/members`
+
+---
+
 ## [0.1.2] - 2026-08-06
 
 ### Added
@@ -75,7 +89,10 @@ First public **Alpha** release.
 
 - [中文更新日志](CHANGELOG.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
+- [Unreleased vs v0.2.0](https://github.com/shanananana/deepticket/compare/v0.2.0...HEAD)
 
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/shanananana/deepticket/releases/tag/v0.2.0
 [0.1.2]: https://github.com/shanananana/deepticket/releases/tag/v0.1.2
 [0.1.1]: https://github.com/shanananana/deepticket/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/shanananana/deepticket/releases/tag/v0.1.0

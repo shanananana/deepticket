@@ -20,11 +20,12 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**面向业务组内网部署的 SRE Agent 编排层**（[最新 v0.1.2](https://github.com/shanananana/deepticket/releases/tag/v0.1.2)）— **不替换**公司级 AIOps / Copilot 平台，而是接你们已有的 **MCP、日志、配置中心、ITSM**，在 [OpenHands](https://github.com/OpenHands/OpenHands) 之上做 Ingress/Webhook 闭环，让 Agent 在 **Git 源码 + 日志 + 配置** 三源上可复核排障；工作台含 Thinking 步骤与**分析置信度**。
+**面向业务组内网部署的 SRE Agent 编排层**（[最新 v0.2.0](https://github.com/shanananana/deepticket/releases/tag/v0.2.0)）— **不替换**公司级 AIOps / Copilot 平台，而是接你们已有的 **MCP、日志、配置中心、ITSM**，在 [OpenHands](https://github.com/OpenHands/OpenHands) 之上做 Ingress/Webhook 闭环；**一套服务可接多团队多项目**，每项目独立知识库 / MCP / agents.md，让 Agent 在 **Git 源码 + 日志 + 配置** 三源上可复核排障；工作台含 Thinking 步骤与**分析置信度**。
 
 关键词：AIOps · SRE · on-call · 企业内网 · 业务组 · 自托管 · MCP 集成 · 编排层 · 工单自动化 · 故障根因分析 · LLM Agent · FastAPI
 
 - **薄编排层** — 自托管部署，yaml 增量接入；与监控 / ITSM / 配置中心**并存**，不抢平台 Agent 位子
+- **多团队 / 多项目** — 一套 DeepTicket 服务多个业务线；每项目独立知识库、MCP、agents.md 与工作区，侧栏切换、后台分项配置
 - **MCP / Skill 扩展** — 大厂常见内网 MCP（日志、配置、CMDB…）直接挂载；平台级 Agent 很少做到这个粒度
 - **Ingress / Outbound** — 告警 / 工单 HTTP 进，分析结论 Webhook 回写
 - **Workbench** — 多轮追问、Thinking 步骤、分析置信度；SSE 心跳适配网关
@@ -97,7 +98,9 @@ DeepTicket 的定位：**业务组级薄编排层** — 统一 Ingress 进、Web
 | 内部 MCP Server（CMDB、发布、监控…） | `deepticket.yaml` 挂载，Agent 按需调用 |
 | 公司级 AIOps / Copilot 平台 | **并存** — DeepTicket 是业务组可自托管的编排层，不绑平台排期 |
 
-**典型落地形态：** 业务组 clone DeepTicket → 填 `deepticket.yaml`（LLM Key + 本组**多个 Git 仓库**）→ 按需挂内网 MCP / Skill → 值班用工作台，监控/工单走 Ingress。数据留在组内，**不必等公司级 Agent 平台排期**。
+**典型落地形态：** 业务组 clone DeepTicket → 填 `deepticket.yaml`（LLM Key + 默认 Git / MCP 兜底）→ **按项目**挂各组仓库与 MCP → 值班用工作台切换项目，监控/工单走 Ingress。数据留在组内，**不必等公司级 Agent 平台排期**。
+
+**多团队接入：** 同一实例可注册多个项目（如 `ad-agent`、`payment`、`infra`）。每个项目拥有独立的 Git 知识库、MCP 列表、agents.md 提示词与 Agent 工作区；`deepticket.yaml` 仅作默认兜底，运行配置存 Redis，管理员可在工作台 **分项修改、单独保存**，无需一次改全表。
 
 垂类业务 Agent（如 [ad_agent](https://github.com/shanananana/ad_agent)）负责「懂业务对话」；DeepTicket 负责「**接基建、跑 SRE 流水线**」— 两者可组合，而不是二选一。
 
@@ -112,6 +115,7 @@ DeepTicket 的定位：**业务组级薄编排层** — 统一 Ingress 进、Web
 | 对接线上日志 / 配置 | 需人工灌库 | 通常无内网 MCP 粒度 | 有限 | ✅ Skill / **MCP**（挂你们已有服务） |
 | 与现有 ITSM / 监控并存 | ❌ | 常绑统一平台 | 部分 | ✅ Ingress + Webhook，**增量接入** |
 | 业务组自托管 / 独立试点 | 中 | 需等平台排期 | SaaS 为主 | ✅ 自托管 + yaml，挂多仓库，**不抢平台位子** |
+| **多团队 / 多项目隔离** | 弱 | 常统一租户 | 按产品切 | ✅ 侧栏选项目；每项目独立 repos / MCP / agents.md / workspace |
 | 工单 / 告警自动触发 | ❌ | 弱 | 部分 | ✅ Ingress + 异步队列 |
 | 工程师多轮协作 + 置信度 | 聊天 | 有 | 弱 | ✅ 工作台 + SSE + 分析置信度 |
 | 开箱即用程度 | 低（embedding / 向量库 / 灌库） | 高（SaaS） | SaaS 较高 | ✅ LLM Key + Git 仓库即可跑；日志/配置 MCP 按需 |
@@ -126,6 +130,24 @@ DeepTicket 的定位：**业务组级薄编排层** — 统一 Ingress 进、Web
 | 公开生产案例 | 🟡 尚无 — 欢迎 Issue 分享你的场景（可匿名） |
 
 若你在试用 DeepTicket，欢迎在 [Discussions / Issues](https://github.com/shanananana/deepticket/issues) 留言，我们会考虑收录到本节（可匿名）。
+
+---
+
+## 多团队 / 多项目
+
+一套 DeepTicket 可同时服务多个业务线或小组，避免「每个团队各部署一套 Agent 平台」：
+
+| 维度 | 说明 |
+|------|------|
+| **项目切换** | 工作台侧栏选择项目；聊天、知识库、Skill 发布均按 `project_id` 隔离 |
+| **独立配置** | 每项目可配自己的 Git 仓库、MCP Server、agents.md（注入 OpenHands 系统提示） |
+| **配置存储** | 运行时以 **Redis 为准**；`deepticket.yaml` 作默认兜底，未写入 Redis 的字段自动回落 |
+| **后台管理** | 侧栏 **Token 消耗** 与 **项目配置** 并列；在「项目配置」中分项编辑（基本信息 / 成员 / Repos / MCP / agents.md），支持载入 yaml 默认后再改 |
+| **权限** | 可按项目分配成员（API）；管理员可见全部项目 |
+
+新建项目、修改 MCP 等操作见侧栏 **项目配置**（管理员），或通过 `PUT/PATCH /api/admin/projects/{id}` 接入 CI / 运维脚本。
+
+> **说明：** Ingress 工单链路当前仍走 `default` 项目；多项目主要覆盖 **工作台问答** 与 **按项目知识库 / MCP**。后续可按 `project_id` 扩展 Ingress 路由。
 
 ---
 
@@ -161,11 +183,13 @@ DeepTicket 的定位：**业务组级薄编排层** — 统一 Ingress 进、Web
 | 区块 | 作用 |
 |------|------|
 | `llm` | 模型与 API Key |
-| `knowledge.repos` | 只读 Git 仓库（代码分析） |
+| `knowledge.repos` | 默认 Git 仓库（代码分析；多项目可在后台按项目覆盖） |
 | `ingress` | 外部工单/告警接入与 Webhook 回写 |
-| `storage` | 本地或 Redis |
+| `storage` | 本地或 **Redis**（多项目配置、聊天历史、权限建议用 Redis） |
 | `web` | 工作台 SSE 心跳间隔（`sse_heartbeat_seconds`） |
-| `extensions` / `mcp` | Skill 与 MCP 扩展 |
+| `extensions` / `mcp` | 默认 Skill 目录与 MCP；各项目可在后台单独覆盖 |
+
+**多项目运行时配置** 存 Redis（`project_configs`），不由 yaml 热更新；yaml 仅提供首次兜底。管理员 API：`GET/PATCH /api/admin/projects/{id}` 及 `/knowledge`、`/mcp`、`/extensions` 子路径。
 
 日志、配置中心对接请改 `log-query` / `config-query` Skill 模板，或接 MCP。字段说明见 **`deepticket.example.yaml`** 内注释。
 
@@ -173,7 +197,7 @@ DeepTicket 的定位：**业务组级薄编排层** — 统一 Ingress 进、Web
 
 ## 使用方式
 
-**Web 工作台** — 登录 → 新建对话 → 描述问题或粘贴日志 → 需要时「同步知识库」→ 多轮追问直至缩小范围。设置里可开 **录屏模式**，Agent 步骤会保持展开；含读代码/查日志等验证步骤的分析对话会展示 **置信度** 徽章（纯寒暄不展示）。网关前部署时可在 `deepticket.yaml` 配置 **`web.sse_heartbeat_seconds`** 保持 SSE 长连接。
+**Web 工作台** — 登录 → **选择项目** → 新建对话 → 描述问题或粘贴日志 → 需要时「同步知识库」→ 多轮追问直至缩小范围。设置里可开 **录屏模式**，Agent 步骤会保持展开；含读代码/查日志等验证步骤的分析对话会展示 **置信度** 徽章（纯寒暄不展示）。网关前部署时可在 `deepticket.yaml` 配置 **`web.sse_heartbeat_seconds`** 保持 SSE 长连接。
 
 **外部系统自动化** — 监控/ITSM/Jira 等 HTTP 推送事件，DeepTicket 异步分析后 Webhook 回写或仅存库；一般只需改 yaml，不必改主程序。本地联调：`bash scripts/test_ingress_e2e.sh`。
 
@@ -211,6 +235,11 @@ bash scripts/verify.sh --online
 <details>
 <summary><strong>能否接 Jira、Prometheus、企业微信？</strong></summary>
 <p>可以。外部系统 HTTP POST 到 Ingress（带 API Key），DeepTicket 异步分析后 Webhook 回写 ITSM；详见 <code>deepticket.example.yaml</code> 与 <code>bash scripts/test_ingress_e2e.sh</code>。</p>
+</details>
+
+<details>
+<summary><strong>如何接入多个团队 / 多个项目？</strong></summary>
+<p>启用 Redis 存储后，在侧栏打开 <strong>项目配置</strong>（管理员，位于 Token 消耗下方）新建项目，分别为各项目配置 Git 仓库、MCP 与 agents.md。用户登录后在侧栏切换项目即可；对话与知识库按项目隔离。yaml 里的 <code>knowledge</code> / <code>mcp</code> 仅作默认兜底，后台保存的内容写入 Redis 优先生效。</p>
 </details>
 
 <details>

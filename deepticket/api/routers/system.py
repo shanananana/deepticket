@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from deepticket.api.deps import get_llm, get_service
 from deepticket.auth.dependencies import get_admin_user, get_current_user
 from deepticket.auth.user_store import AuthUser
+from deepticket.projects.dependencies import get_project_context
+from deepticket.projects.registry import ProjectContext
 
 router = APIRouter(prefix="/api", tags=["System"])
 
@@ -17,9 +19,7 @@ async def health(request: Request) -> dict:
     return {
         **public,
         "register_enabled": service.config.auth.register_enabled,
-        "gateway_model": f"openhands_{service.config.engine.llm_profile}",
-        "profile": service.config.engine.llm_profile,
-        "model": llm.model,
+        "multi_project": True,
     }
 
 
@@ -31,7 +31,7 @@ async def metrics(request: Request, _: AuthUser = Depends(get_admin_user)) -> di
         "metrics": service.get_metrics_snapshot(),
         "model_label": service.llm_label,
         "model": llm.model,
-        "knowledge_repos": service.list_git_repos(),
+        "projects": service.projects.config_store.list_summaries(),
         "storage": service.get_storage_info(),
         "extensions": service.get_extensions_info(),
         "ingress": {
@@ -43,19 +43,31 @@ async def metrics(request: Request, _: AuthUser = Depends(get_admin_user)) -> di
 
 
 @router.get("/knowledge/repos")
-async def knowledge_repos(request: Request, _: AuthUser = Depends(get_current_user)) -> dict:
-    return {"repos": get_service(request).list_git_repos()}
+async def knowledge_repos(
+    request: Request,
+    project: ProjectContext = Depends(get_project_context),
+    _: AuthUser = Depends(get_current_user),
+) -> dict:
+    service = get_service(request)
+    return {
+        "project_id": project.project_id,
+        "repos": service.list_project_git_repos(project),
+    }
 
 
 @router.post("/knowledge/sync")
-async def knowledge_sync(request: Request, _: AuthUser = Depends(get_current_user)) -> dict:
-    from fastapi import HTTPException
-
+async def knowledge_sync(
+    request: Request,
+    project: ProjectContext = Depends(get_project_context),
+    _: AuthUser = Depends(get_current_user),
+) -> dict:
+    service = get_service(request)
     try:
-        results = get_service(request).sync_knowledge()
+        results = service.sync_project_knowledge(project)
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {
+        "project_id": project.project_id,
         "synced": [
             {
                 "repo_id": item.repo_id,
@@ -64,30 +76,38 @@ async def knowledge_sync(request: Request, _: AuthUser = Depends(get_current_use
                 "branch": item.branch,
             }
             for item in results
-        ]
+        ],
     }
 
 
 @router.get("/skills")
-async def skills_list(request: Request, _: AuthUser = Depends(get_current_user)) -> dict:
+async def skills_list(
+    request: Request,
+    project: ProjectContext = Depends(get_project_context),
+    _: AuthUser = Depends(get_current_user),
+) -> dict:
     service = get_service(request)
     return {
+        "project_id": project.project_id,
         "skills": [
             {"name": s.name, "source": s.source, "path": s.path}
-            for s in service.list_skills()
-        ]
+            for s in service.list_project_skills(project)
+        ],
     }
 
 
 @router.post("/skills/reload")
-async def skills_reload(request: Request, _: AuthUser = Depends(get_current_user)) -> dict:
-    from fastapi import HTTPException
-
+async def skills_reload(
+    request: Request,
+    project: ProjectContext = Depends(get_project_context),
+    _: AuthUser = Depends(get_current_user),
+) -> dict:
+    service = get_service(request)
     try:
-        published = get_service(request).reload_skills()
+        published = service.reload_project_skills(project)
     except OSError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return {"published": published}
+    return {"project_id": project.project_id, "published": published}
 
 
 @router.get("/storage/info")

@@ -34,6 +34,7 @@ from deepticket.layers.storage.chat_history import ChatHistoryStore
 from deepticket.layers.storage.token_usage import TokenUsageStore
 from deepticket.observability.metrics import get_metrics
 from deepticket.paths import resolve_from_project
+from deepticket.projects.registry import ProjectContext, ProjectRegistry
 
 logger = logging.getLogger(__name__)
 _metrics = get_metrics()
@@ -61,6 +62,7 @@ class DeepTicketService:
         self.users = UserStore(self.storage)
         self.chat_history = ChatHistoryStore(self.storage)
         self.token_usage = TokenUsageStore(self.storage)
+        self.projects = ProjectRegistry(self.storage, config, resolve_path=self._resolve_path)
         self.knowledge = KnowledgeManager(config.knowledge)
         self.skills = SkillManager(
             skills_dir=self._resolve_path(config.extensions.skills_dir),
@@ -89,15 +91,23 @@ class DeepTicketService:
         return resolve_from_project(raw)
 
     async def startup(self) -> None:
-        bootstrap = self.users.ensure_bootstrap_user(
+        bootstrap_user = self.users.ensure_bootstrap_user(
             self.config.auth.bootstrap_username,
             self.config.auth.bootstrap_password,
         )
-        if bootstrap:
-            logger.info(
-                "已创建默认账户: %s（请尽快修改密码）",
-                self.config.auth.bootstrap_username,
+        if bootstrap_user is not None:
+            doc = self.storage.get_json("users", bootstrap_user.uid) or {}
+            if doc.get("bootstrap"):
+                logger.info(
+                    "已创建默认账户: %s（请尽快修改密码）",
+                    self.config.auth.bootstrap_username,
+                )
+            self.projects.bootstrap(
+                bootstrap_uid=bootstrap_user.uid,
+                bootstrap_username=bootstrap_user.username,
             )
+        else:
+            self.projects.config_store.ensure_default_project()
 
         await self.engine.ensure_ready()
         try:
@@ -112,7 +122,7 @@ class DeepTicketService:
             errors = validate_mcp_servers(servers)
             if errors:
                 raise ValueError("MCP 配置无效: " + "; ".join(errors))
-            await self.engine.sync_mcp_config(servers)
+            await self.engine.  sync_mcp_config(servers)
             if servers:
                 logger.info("MCP 已同步: %s", ", ".join(servers.keys()))
             else:
@@ -155,6 +165,45 @@ class DeepTicketService:
             admins = [self.config.auth.bootstrap_username]
         return user.username.lower() in {name.lower() for name in admins}
 
+    def grant_default_project(self, user: AuthUser) -> None:
+        self.projects.permissions.ensure_default_access(user.uid, user.username)
+
+    def list_user_projects(self, user: AuthUser) -> list[dict[str, object]]:
+        summaries = self.projects.list_summaries_for_user(
+            user.uid, is_admin=self.is_admin(user)
+        )
+        return [item.model_dump() for item in summaries]
+
+    def apply_project_runtime(
+        self, agent_input: AgentInput, project: ProjectContext
+    ) -> None:
+        runtime = project.runtime()
+        agent_input.workspace_dir = str(runtime.workspace_dir)
+        agent_input.mcp_config = runtime.mcp_servers
+        agent_input.agents_md = runtime.agents_md
+        try:
+            published = project.publish_skills()
+            if published:
+                logger.info(
+                    "项目 %s Skills 已发布: %s",
+                    project.project_id,
+                    ", ".join(published),
+                )
+        except OSError as exc:
+            logger.warning("项目 %s Skill 发布失败: %s", project.project_id, exc)
+
+    def list_project_git_repos(self, project: ProjectContext) -> list[dict[str, str]]:
+        return project.list_repos()
+
+    def sync_project_knowledge(self, project: ProjectContext) -> list[GitSyncResult]:
+        return project.sync_knowledge()
+
+    def reload_project_skills(self, project: ProjectContext) -> list[str]:
+        return project.publish_skills()
+
+    def list_project_skills(self, project: ProjectContext) -> list[SkillInfo]:
+        return project.list_skills()
+
     def list_recent_ingress_jobs(self, *, limit: int = 20) -> list[dict]:
         keys = self.storage.list_keys(self.NAMESPACE_INGRESS)
         jobs: list[dict] = []
@@ -195,6 +244,7 @@ class DeepTicketService:
     async def record_chat_token_usage(
         self,
         *,
+        project_id: str,
         uid: str,
         chat_id: str,
         agent_conversation_id: str,
@@ -203,7 +253,7 @@ class DeepTicketService:
         if not usage:
             return
 
-        thread = self.chat_history.get_thread(uid, chat_id)
+        thread = self.chat_history.get_thread(project_id, uid, chat_id)
         if thread is None:
             return
 
@@ -230,6 +280,7 @@ class DeepTicketService:
         }
 
         self.chat_history.set_token_usage(
+            project_id,
             uid,
             chat_id,
             prompt_tokens=int(usage["prompt_tokens"]),
@@ -428,8 +479,11 @@ class DeepTicketService:
         status = "finished"
 
         try:
+            default_project = self.projects.require(
+                self.projects.config_store.default_project_id()
+            )
             reply, conversation_id, confidence = await collect_stream_text(
-                self.run_ticket_stream(ticket)
+                self.run_ticket_stream(ticket, project=default_project)
             )
         except Exception as exc:
             status = "failed"
@@ -489,19 +543,22 @@ class DeepTicketService:
         self,
         payload: ChatInput,
         *,
+        project: ProjectContext,
         uid: str | None = None,
         chat_id: str | None = None,
     ) -> AsyncIterator[StreamChunk]:
         agent_input = InputAdapter.from_chat(payload)
+        self.apply_project_runtime(agent_input, project)
+        project_id = project.project_id
 
         if uid and chat_id:
-            thread = self.chat_history.get_thread(uid, chat_id)
+            thread = self.chat_history.get_thread(project_id, uid, chat_id)
             if thread is None:
                 raise RuntimeError(f"聊天不存在: {chat_id}")
             if thread.get("agent_conversation_id") and not agent_input.conversation_id:
                 agent_input.conversation_id = thread["agent_conversation_id"]
             self.chat_history.append_message(
-                uid, chat_id, role="user", content=payload.message.strip()
+                project_id, uid, chat_id, role="user", content=payload.message.strip()
             )
 
         assistant_parts: list[str] = []
@@ -534,6 +591,7 @@ class DeepTicketService:
         if uid and chat_id:
             if assistant_parts:
                 self.chat_history.append_message(
+                    project_id,
                     uid,
                     chat_id,
                     role="assistant",
@@ -544,11 +602,12 @@ class DeepTicketService:
                 )
             elif agent_conversation_id:
                 self.chat_history.set_agent_conversation_id(
-                    uid, chat_id, agent_conversation_id
+                    project_id, uid, chat_id, agent_conversation_id
                 )
             if agent_conversation_id:
                 try:
                     await self.record_chat_token_usage(
+                        project_id=project_id,
                         uid=uid,
                         chat_id=chat_id,
                         agent_conversation_id=agent_conversation_id,
@@ -558,8 +617,11 @@ class DeepTicketService:
                 except RuntimeError as exc:
                     logger.warning("记录 token 用量失败: %s", exc)
 
-    async def run_ticket_stream(self, payload: TicketInput) -> AsyncIterator[StreamChunk]:
+    async def run_ticket_stream(
+        self, payload: TicketInput, *, project: ProjectContext
+    ) -> AsyncIterator[StreamChunk]:
         agent_input = InputAdapter.from_ticket(payload)
+        self.apply_project_runtime(agent_input, project)
         self.storage.set_json(
             self.NAMESPACE_TICKET,
             payload.ticket_id,

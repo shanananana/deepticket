@@ -21,6 +21,7 @@ async def register(body: RegisterRequest, request: Request) -> dict:
         user = service.users.register(body.username, body.password)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    service.grant_default_project(user)
     return {"user": UserResponse(uid=user.uid, username=user.username).model_dump()}
 
 

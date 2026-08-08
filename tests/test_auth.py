@@ -20,9 +20,9 @@ def test_register_login_and_isolation(tmp_path):
     assert users.resolve_token(token_a) is not None
     assert users.resolve_token("invalid-token") is None
 
-    thread = chats.create_thread(user_a.uid, title="test")
-    chats.append_message(user_a.uid, thread["chat_id"], role="user", content="hi")
-    assert chats.get_thread(user_b.uid, thread["chat_id"]) is None
+    thread = chats.create_thread("default", user_a.uid, title="test")
+    chats.append_message("default", user_a.uid, thread["chat_id"], role="user", content="hi")
+    assert chats.get_thread("default", user_b.uid, thread["chat_id"]) is None
 
 
 def test_duplicate_username_rejected(tmp_path):

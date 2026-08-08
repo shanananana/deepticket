@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>工作台 · DeepTicket</title>
-  <link rel="stylesheet" href="/static/style.css?v=16" />
+  <link rel="stylesheet" href="/static/style.css?v=20" />
 </head>
 <body>
   <div class="aurora"></div>
@@ -26,9 +26,19 @@
         <span>新对话</span>
       </button>
 
+      <label class="project-select-wrap">
+        <span class="list-label">当前项目</span>
+        <select id="projectSelect" class="project-select"></select>
+      </label>
+
       <button id="adminBoardBtn" type="button" class="btn secondary full admin-board-btn hidden">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         <span>Token 消耗</span>
+      </button>
+
+      <button id="adminProjectsBtn" type="button" class="btn secondary full admin-board-btn hidden">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.5-1.5"/></svg>
+        <span>项目配置</span>
       </button>
 
       <div class="search-wrap">
@@ -133,6 +143,98 @@
         </section>
       </div>
 
+      <div id="adminProjectPanel" class="admin-dashboard hidden">
+        <div class="dashboard-header">
+          <div>
+            <h2>项目配置</h2>
+            <p id="projectConfigHint" class="dashboard-sub">Redis 优先；未写入 Redis 时使用 deepticket.yaml 兜底。各区块可单独保存。</p>
+          </div>
+          <div class="dashboard-actions">
+            <select id="projectConfigSelect" class="project-select"></select>
+            <button id="createProjectBtn" type="button" class="btn secondary">新建项目</button>
+            <button id="reloadProjectConfigBtn" type="button" class="btn secondary">重新加载</button>
+            <button id="closeProjectAdminBtn" type="button" class="btn secondary">返回对话</button>
+          </div>
+        </div>
+        <section id="projectCreatePanel" class="project-config-block hidden">
+          <div class="project-config-block-head">
+            <h4>新建项目</h4>
+            <div class="project-config-block-actions">
+              <button id="cancelCreateProjectBtn" type="button" class="btn secondary btn-sm">取消</button>
+              <button id="submitCreateProjectBtn" type="button" class="btn primary btn-sm">创建</button>
+            </div>
+          </div>
+          <p class="project-config-note">项目 ID 创建后不可改；配置可先留空，创建后在下方分项编辑。</p>
+          <div class="project-config-fields">
+            <label>项目 ID <input id="newProjectId" type="text" class="project-config-input" placeholder="如 payment-team" maxlength="64" /></label>
+            <label>名称 <input id="newProjectName" type="text" class="project-config-input" placeholder="支付组" maxlength="128" /></label>
+            <label>描述 <input id="newProjectDescription" type="text" class="project-config-input" placeholder="可选" maxlength="512" /></label>
+          </div>
+        </section>
+        <div id="projectConfigPanel" class="project-config-sections">
+            <section class="project-config-block">
+              <div class="project-config-block-head">
+                <h4>基本信息</h4>
+                <div class="project-config-block-actions">
+                  <button id="loadProjectMetaDefaultBtn" type="button" class="btn secondary btn-sm">载入 yaml 默认</button>
+                  <button id="saveProjectMetaBtn" type="button" class="btn primary btn-sm">保存</button>
+                </div>
+              </div>
+              <div class="project-config-fields">
+                <label>名称 <input id="projectMetaName" type="text" class="project-config-input" /></label>
+                <label>描述 <input id="projectMetaDescription" type="text" class="project-config-input" /></label>
+                <label class="project-config-check"><input id="projectMetaEnabled" type="checkbox" /> 启用</label>
+              </div>
+            </section>
+            <section class="project-config-block">
+              <div class="project-config-block-head">
+                <h4>成员权限</h4>
+                <button id="saveProjectMembersBtn" type="button" class="btn primary btn-sm">保存成员</button>
+              </div>
+              <p class="project-config-note">每行一个用户名；保存后覆盖该项目成员列表。管理员始终可见全部项目。</p>
+              <div id="projectMembersTags" class="project-member-tags"></div>
+              <textarea id="projectMembersEditor" class="project-config-editor project-config-editor-sm" spellcheck="false" placeholder="alice&#10;bob"></textarea>
+            </section>
+            <section class="project-config-block">
+              <div class="project-config-block-head">
+                <h4>知识库 Repos</h4>
+                <div class="project-config-block-actions">
+                  <button id="loadProjectReposDefaultBtn" type="button" class="btn secondary btn-sm">载入 yaml 默认</button>
+                  <button id="saveProjectReposBtn" type="button" class="btn primary btn-sm">保存</button>
+                </div>
+              </div>
+              <textarea id="projectReposEditor" class="project-config-editor" spellcheck="false"></textarea>
+            </section>
+            <section class="project-config-block">
+              <div class="project-config-block-head">
+                <h4>MCP Servers</h4>
+                <div class="project-config-block-actions">
+                  <button id="loadProjectMcpDefaultBtn" type="button" class="btn secondary btn-sm">载入 yaml 默认</button>
+                  <button id="saveProjectMcpBtn" type="button" class="btn primary btn-sm">保存</button>
+                </div>
+              </div>
+              <textarea id="projectMcpEditor" class="project-config-editor" spellcheck="false"></textarea>
+            </section>
+            <section class="project-config-block">
+              <div class="project-config-block-head">
+                <h4>agents.md</h4>
+                <div class="project-config-block-actions">
+                  <button id="loadProjectAgentsDefaultBtn" type="button" class="btn secondary btn-sm">载入 yaml 默认</button>
+                  <button id="saveProjectAgentsBtn" type="button" class="btn primary btn-sm">保存</button>
+                </div>
+              </div>
+              <p class="project-config-note">注入 OpenHands 的 system_message_suffix。可选 yaml 默认、内置模板，填入下方后自行修改，再点保存。</p>
+              <div class="project-config-fields">
+                <label>
+                  默认模板
+                  <select id="projectAgentsTemplate" class="project-config-input"></select>
+                </label>
+              </div>
+              <textarea id="projectAgentsEditor" class="project-config-editor project-config-editor-sm" spellcheck="false" placeholder="选择模板后内容会显示在这里，可自行编辑"></textarea>
+            </section>
+        </div>
+      </div>
+
       <div id="messages" class="messages">
         <div class="messages-inner">
           <div id="emptyState" class="empty-state">
@@ -181,6 +283,6 @@
 
   <div id="toastStack" class="toast-stack"></div>
 
-  <script type="module" src="/static/app.js?v=18"></script>
+  <script type="module" src="/static/app.js?v=24"></script>
 </body>
 </html>

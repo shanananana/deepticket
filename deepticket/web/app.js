@@ -2,6 +2,7 @@ import { renderMarkdown } from "/static/markdown.js?v=16";
 
 const ASSET_VERSION = "13";
 const TOKEN_KEY = "deepticket_token";
+const PROJECT_KEY = "deepticket_project_id";
 const RECORD_MODE_KEY = "deepticket_record_mode";
 
 const ACTIVITY_ICONS = {
@@ -37,6 +38,61 @@ const ICONS = {
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
 };
+
+/** agents.md 默认模板：选择后填入下方编辑框，用户可再改 */
+const AGENTS_MD_TEMPLATES = [
+  {
+    id: "",
+    label: "不注入（空）",
+    content: "",
+  },
+  {
+    id: "sre",
+    label: "SRE 故障排查",
+    content: `你是本项目的 SRE 助手，负责故障定位与根因分析。
+
+工作方式：
+- 优先只读检索 workspace 知识库与代码，引用具体文件路径和日志行
+- 先复述现象，再给出 1～3 个最可能根因，并说明证据
+- 给出可执行的排查步骤与修复建议；不确定处明确标注
+- 不要臆造不存在的配置、指标或代码；不要运行破坏性命令`,
+  },
+  {
+    id: "code_qa",
+    label: "代码走读 / Q&A",
+    content: `你是本项目的代码分析助手。
+
+工作方式：
+- 基于 workspace 内代码与文档回答，引用文件路径
+- 解释调用链、数据流与关键配置；对比改动影响
+- 只读分析，不修改代码，不执行可能写盘或发网的命令
+- 回答简洁，先结论后依据`,
+  },
+  {
+    id: "business",
+    label: "业务指标分析",
+    content: `你是本项目的业务分析助手，擅长从日志、配置与指标中找异常原因。
+
+工作方式：
+- 对比时间窗口前后的关键指标（如 ROI、转化率、预算、曝光）
+- 结合 campaign / 配置变更日志，给出归因与证据
+- 只读查 workspace 中的 .log、yaml、csv 等；不要生成假数据
+- 输出：现象摘要 → 根因假设 → 证据 → 建议动作`,
+  },
+  {
+    id: "ticket",
+    label: "工单分流",
+    content: `你是工单 triage 助手。
+
+工作方式：
+- 从标题、描述、日志中提取：影响面、紧急度、可能模块
+- 建议路由（研发 / SRE / 业务）与下一步动作
+- 需要查代码或配置时，只读检索 workspace
+- 回复结构：摘要 / 严重级别 / 建议处理人 / 待办清单`,
+  },
+];
+
+const AGENTS_MD_CUSTOM_TEMPLATE_ID = "_custom";
 
 /* DOM 引用 */
 const $ = (id) => document.getElementById(id);
@@ -76,25 +132,96 @@ const menuToggle = $("menuToggle");
 const toastStack = $("toastStack");
 const adminBoardBtn = $("adminBoardBtn");
 const adminDashboard = $("adminDashboard");
+const adminProjectPanel = $("adminProjectPanel");
+const adminProjectsBtn = $("adminProjectsBtn");
 const tokenSummary = $("tokenSummary");
 const tokenConversations = $("tokenConversations");
 const tokenRuns = $("tokenRuns");
 const refreshDashboardBtn = $("refreshDashboardBtn");
 const closeDashboardBtn = $("closeDashboardBtn");
+const closeProjectAdminBtn = $("closeProjectAdminBtn");
+const projectSelectEl = $("projectSelect");
+const projectConfigPanel = $("projectConfigPanel");
+const projectConfigSelect = $("projectConfigSelect");
+const projectCreatePanel = $("projectCreatePanel");
+const createProjectBtn = $("createProjectBtn");
+const cancelCreateProjectBtn = $("cancelCreateProjectBtn");
+const submitCreateProjectBtn = $("submitCreateProjectBtn");
+const newProjectId = $("newProjectId");
+const newProjectName = $("newProjectName");
+const newProjectDescription = $("newProjectDescription");
+const projectMembersTags = $("projectMembersTags");
+const projectMembersEditor = $("projectMembersEditor");
+const saveProjectMembersBtn = $("saveProjectMembersBtn");
+const projectConfigHint = $("projectConfigHint");
+const projectMetaName = $("projectMetaName");
+const projectMetaDescription = $("projectMetaDescription");
+const projectMetaEnabled = $("projectMetaEnabled");
+const projectReposEditor = $("projectReposEditor");
+const projectMcpEditor = $("projectMcpEditor");
+const projectAgentsTemplate = $("projectAgentsTemplate");
+const projectAgentsEditor = $("projectAgentsEditor");
+const saveProjectMetaBtn = $("saveProjectMetaBtn");
+const loadProjectMetaDefaultBtn = $("loadProjectMetaDefaultBtn");
+const saveProjectReposBtn = $("saveProjectReposBtn");
+const loadProjectReposDefaultBtn = $("loadProjectReposDefaultBtn");
+const saveProjectMcpBtn = $("saveProjectMcpBtn");
+const loadProjectMcpDefaultBtn = $("loadProjectMcpDefaultBtn");
+const saveProjectAgentsBtn = $("saveProjectAgentsBtn");
+const loadProjectAgentsDefaultBtn = $("loadProjectAgentsDefaultBtn");
+const reloadProjectConfigBtn = $("reloadProjectConfigBtn");
 const composerZone = document.querySelector(".composer-zone");
 
 /* 状态 */
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser = null;
 let isAdmin = false;
-let dashboardMode = false;
+let adminViewMode = null;
 let dashboardPollTimer = null;
 let currentChatId = null;
 let agentConversationId = null;
 let busy = false;
 let chatAbortController = null;
 let allChats = [];
+let availableProjects = [];
+let currentProjectId = localStorage.getItem(PROJECT_KEY) || "default";
+let adminProjectYamlDefaults = null;
 let recordMode = localStorage.getItem(RECORD_MODE_KEY) === "1";
+
+function projectQuery(extra = "") {
+  const join = extra.includes("?") ? "&" : "?";
+  return `${extra}${join}project_id=${encodeURIComponent(currentProjectId || "default")}`;
+}
+
+async function loadProjects() {
+  const resp = await apiFetch("/api/projects");
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "加载项目失败");
+  availableProjects = data.projects || [];
+  if (!availableProjects.some((item) => item.id === currentProjectId)) {
+    currentProjectId = availableProjects[0]?.id || "default";
+    localStorage.setItem(PROJECT_KEY, currentProjectId);
+  }
+  if (projectSelectEl) {
+    projectSelectEl.innerHTML = availableProjects
+      .map(
+        (item) =>
+          `<option value="${escapeHtml(item.id)}"${item.id === currentProjectId ? " selected" : ""}>${escapeHtml(item.name)} (${escapeHtml(item.id)})</option>`,
+      )
+      .join("");
+  }
+}
+
+async function switchProject(projectId) {
+  if (!projectId || projectId === currentProjectId) return;
+  currentProjectId = projectId;
+  localStorage.setItem(PROJECT_KEY, currentProjectId);
+  currentChatId = null;
+  agentConversationId = null;
+  clearChatPanel();
+  await loadHealth();
+  await refreshChats();
+}
 
 function syncRecordModeUi() {
   if (!recordModeBtn) return;
@@ -714,7 +841,7 @@ function startRename(item, chat, titleEl) {
     const next = input.value.trim();
     if (save && next && next !== chat.title) {
       try {
-        const resp = await apiFetch(`/api/chats/${chat.chat_id}`, {
+        const resp = await apiFetch(projectQuery(`/api/chats/${chat.chat_id}`), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title: next }),
@@ -746,7 +873,7 @@ async function confirmDelete(chatId) {
   const chat = allChats.find((c) => c.chat_id === chatId);
   if (!window.confirm(`删除对话「${chat?.title || "新会话"}」？此操作不可撤销。`)) return;
   try {
-    const resp = await apiFetch(`/api/chats/${chatId}`, { method: "DELETE" });
+    const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`), { method: "DELETE" });
     if (!resp.ok) throw new Error();
     allChats = allChats.filter((c) => c.chat_id !== chatId);
     if (currentChatId === chatId) clearChatPanel();
@@ -758,7 +885,7 @@ async function confirmDelete(chatId) {
 }
 
 async function refreshChats() {
-  const resp = await apiFetch("/api/chats");
+  const resp = await apiFetch(projectQuery("/api/chats"));
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || "加载对话失败");
   allChats = data.chats || [];
@@ -771,17 +898,10 @@ async function refreshChats() {
 
 async function openChat(chatId) {
   if (busy) return;
-  if (dashboardMode) {
-    dashboardMode = false;
-    adminDashboard.classList.add("hidden");
-    messagesEl.classList.remove("hidden");
-    if (composerZone) composerZone.classList.remove("hidden");
-    if (dashboardPollTimer) {
-      window.clearInterval(dashboardPollTimer);
-      dashboardPollTimer = null;
-    }
+  if (adminViewMode) {
+    closeAdminView({ restoreChat: false });
   }
-  const resp = await apiFetch(`/api/chats/${chatId}`);
+  const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || "打开对话失败");
 
@@ -806,7 +926,7 @@ async function createChat() {
   const resp = await apiFetch("/api/chats", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: "新会话" }),
+    body: JSON.stringify({ title: "新会话", project_id: currentProjectId }),
   });
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || "创建对话失败");
@@ -821,7 +941,7 @@ async function createChat() {
 async function pollChatForReply(chatId, baselineCount) {
   for (let attempt = 0; attempt < 15; attempt += 1) {
     await new Promise((resolve) => window.setTimeout(resolve, 2000));
-    const resp = await apiFetch(`/api/chats/${chatId}`);
+    const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
     const data = await resp.json();
     if (!resp.ok) continue;
     const messages = data.chat?.messages || [];
@@ -847,7 +967,7 @@ async function sendMessage(text) {
   const imageUrls = imageUrlsEl ? parseImageUrls(imageUrlsEl.value || "") : [];
   let baselineCount = 0;
   try {
-    const baselineResp = await apiFetch(`/api/chats/${currentChatId}`);
+    const baselineResp = await apiFetch(projectQuery(`/api/chats/${currentChatId}`));
     const baselineData = await baselineResp.json();
     if (baselineResp.ok) {
       baselineCount = (baselineData.chat?.messages || []).length;
@@ -897,7 +1017,7 @@ async function sendMessage(text) {
   };
 
   try {
-    const resp = await apiFetch("/api/chat", {
+    const resp = await apiFetch(projectQuery("/api/chat"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1033,7 +1153,7 @@ async function sendMessage(text) {
     if (imageUrlsEl) imageUrlsEl.value = "";
     await refreshChats();
     if (currentChatId) {
-      const titleResp = await apiFetch(`/api/chats/${currentChatId}`);
+      const titleResp = await apiFetch(projectQuery(`/api/chats/${currentChatId}`));
       const titleData = await titleResp.json();
       if (titleResp.ok) chatTitleEl.textContent = titleData.chat.title || "新会话";
     }
@@ -1080,6 +1200,7 @@ async function loadMe() {
   menuUserName.textContent = currentUser.username;
   userAvatar.textContent = currentUser.username[0].toUpperCase();
   if (adminBoardBtn) adminBoardBtn.classList.toggle("hidden", !isAdmin);
+  if (adminProjectsBtn) adminProjectsBtn.classList.toggle("hidden", !isAdmin);
   document.querySelector(".user-role").textContent = isAdmin ? "管理员" : "分析工作台";
   if (syncKnowledgeBtn) syncKnowledgeBtn.classList.toggle("hidden", !isAdmin);
   if (reloadSkillsBtn) reloadSkillsBtn.classList.toggle("hidden", !isAdmin);
@@ -1137,31 +1258,351 @@ async function loadDashboard() {
   renderTokenUsage(data);
 }
 
-function openDashboard() {
-  if (!isAdmin) return;
-  dashboardMode = true;
-  adminDashboard.classList.remove("hidden");
+function hideAdminPanels() {
+  adminDashboard?.classList.add("hidden");
+  adminProjectPanel?.classList.add("hidden");
+  if (dashboardPollTimer) {
+    window.clearInterval(dashboardPollTimer);
+    dashboardPollTimer = null;
+  }
+}
+
+function enterAdminChrome(title, subtitle) {
   messagesEl.classList.add("hidden");
   if (composerZone) composerZone.classList.add("hidden");
-  chatTitleEl.textContent = "Token 消耗";
-  conversationIdEl.textContent = "管理员视图";
+  chatTitleEl.textContent = title;
+  conversationIdEl.textContent = subtitle;
   closeSidebarMobile();
+}
+
+function updateAdminNavActive() {
+  adminBoardBtn?.classList.toggle("active", adminViewMode === "token");
+  adminProjectsBtn?.classList.toggle("active", adminViewMode === "projects");
+}
+
+function openProjectAdmin() {
+  if (!isAdmin) return;
+  adminViewMode = "projects";
+  hideAdminPanels();
+  adminProjectPanel?.classList.remove("hidden");
+  toggleCreateProjectPanel(false);
+  enterAdminChrome("项目配置", "管理员 · 项目");
+  updateAdminNavActive();
+  ensureAgentsMdTemplateOptions();
+  loadAdminProjectList().catch((err) => toast(err.message, "error"));
+}
+
+function ensureAgentsMdTemplateOptions() {
+  if (!projectAgentsTemplate || projectAgentsTemplate.dataset.ready === "1") return;
+  const options = AGENTS_MD_TEMPLATES.map(
+    (item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`,
+  );
+  options.push(
+    `<option value="${AGENTS_MD_CUSTOM_TEMPLATE_ID}">自定义（保留当前内容）</option>`,
+  );
+  projectAgentsTemplate.innerHTML = options.join("");
+  projectAgentsTemplate.dataset.ready = "1";
+}
+
+function agentsMdTemplateContent(templateId) {
+  const item = AGENTS_MD_TEMPLATES.find((entry) => entry.id === templateId);
+  return item ? item.content : null;
+}
+
+function matchAgentsMdTemplateId(content) {
+  const normalized = (content || "").trim();
+  for (const item of AGENTS_MD_TEMPLATES) {
+    if ((item.content || "").trim() === normalized) {
+      return item.id;
+    }
+  }
+  return AGENTS_MD_CUSTOM_TEMPLATE_ID;
+}
+
+function syncAgentsMdTemplateSelect(content) {
+  if (!projectAgentsTemplate) return;
+  projectAgentsTemplate.value = matchAgentsMdTemplateId(content);
+}
+
+function applyAgentsMdTemplate(templateId) {
+  if (templateId === AGENTS_MD_CUSTOM_TEMPLATE_ID) return;
+  const content = agentsMdTemplateContent(templateId);
+  if (content !== null && projectAgentsEditor) {
+    projectAgentsEditor.value = content;
+  }
+}
+
+async function loadAdminProjectList() {
+  const resp = await apiFetch("/api/admin/projects");
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "加载项目配置失败");
+  const projects = data.projects || [];
+  if (projectConfigSelect) {
+    projectConfigSelect.innerHTML = projects
+      .map(
+        (item) =>
+          `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} (${escapeHtml(item.id)})</option>`,
+      )
+      .join("");
+  }
+  ensureAgentsMdTemplateOptions();
+  const selected = projectConfigSelect?.value || currentProjectId || "default";
+  await loadAdminProjectConfig(selected);
+}
+
+async function loadAdminProjectConfig(projectId) {
+  const resp = await apiFetch(`/api/admin/projects/${encodeURIComponent(projectId)}`);
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "读取项目配置失败");
+  const project = data.project || {};
+  const defaults = data.defaults || {};
+  adminProjectYamlDefaults = defaults;
+  if (projectConfigHint) {
+    const source = data.in_redis ? "Redis + yaml 兜底" : "仅 yaml 兜底（尚未写入 Redis）";
+    projectConfigHint.textContent = `当前生效：${source}。编辑框显示当前生效值；点「载入 yaml 默认」可单独填入 deepticket.yaml 兜底，改完再保存。`;
+  }
+  if (projectMetaName) projectMetaName.value = project.name || "";
+  if (projectMetaDescription) projectMetaDescription.value = project.description || "";
+  if (projectMetaEnabled) projectMetaEnabled.checked = project.enabled !== false;
+  if (projectReposEditor) {
+    projectReposEditor.value = JSON.stringify(project.knowledge?.repos ?? [], null, 2);
+  }
+  if (projectMcpEditor) {
+    projectMcpEditor.value = JSON.stringify(project.mcp?.servers ?? {}, null, 2);
+  }
+  if (projectAgentsEditor) {
+    const savedAgentsMd = project.extensions?.agents_md ?? "";
+    projectAgentsEditor.value = savedAgentsMd;
+    syncAgentsMdTemplateSelect(savedAgentsMd);
+  }
+  renderProjectMembers(data.members || []);
+}
+
+function renderProjectMembers(members) {
+  if (!projectMembersTags || !projectMembersEditor) return;
+  const list = Array.isArray(members) ? members : [];
+  if (!list.length) {
+    projectMembersTags.classList.add("empty");
+    projectMembersTags.innerHTML = "";
+  } else {
+    projectMembersTags.classList.remove("empty");
+    projectMembersTags.innerHTML = list
+      .map((item) => `<span class="project-member-tag">${escapeHtml(item.username || item.uid)}</span>`)
+      .join("");
+  }
+  projectMembersEditor.value = list.map((item) => item.username).filter(Boolean).join("\n");
+}
+
+function normalizeProjectId(raw) {
+  return (raw || "").trim().toLowerCase();
+}
+
+function isValidProjectId(projectId) {
+  return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(projectId);
+}
+
+function toggleCreateProjectPanel(show) {
+  if (!projectCreatePanel) return;
+  projectCreatePanel.classList.toggle("hidden", !show);
+  if (show) {
+    if (newProjectId) newProjectId.value = "";
+    if (newProjectName) newProjectName.value = "";
+    if (newProjectDescription) newProjectDescription.value = "";
+    newProjectId?.focus();
+  }
+}
+
+async function createProject() {
+  const projectId = normalizeProjectId(newProjectId?.value);
+  const name = (newProjectName?.value || "").trim();
+  const description = (newProjectDescription?.value || "").trim();
+  if (!isValidProjectId(projectId)) {
+    toast("项目 ID 需 1–64 位，小写字母/数字开头，仅含 a-z 0-9 _ -", "error");
+    return;
+  }
+  if (!name) {
+    toast("请填写项目名称", "error");
+    return;
+  }
+  const resp = await apiFetch(`/api/admin/projects/${encodeURIComponent(projectId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: projectId,
+      name,
+      description,
+      enabled: true,
+      knowledge: { repos: [] },
+      mcp: { servers: {} },
+      extensions: { agents_md: "", user_skills_dir: "" },
+    }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "创建项目失败");
+  toast(`项目 ${name} 已创建`, "success");
+  toggleCreateProjectPanel(false);
+  await loadProjects();
+  if (projectConfigSelect) projectConfigSelect.value = projectId;
+  await loadAdminProjectList();
+}
+
+async function saveProjectMembers() {
+  const projectId = currentProjectConfigId();
+  const usernames = (projectMembersEditor?.value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const resp = await apiFetch(`/api/admin/projects/${encodeURIComponent(projectId)}/members`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ usernames }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "保存成员失败");
+  toast("成员已保存", "success");
+  renderProjectMembers(data.members || []);
+  await loadProjects();
+}
+
+function loadYamlDefaultMeta() {
+  const defaults = adminProjectYamlDefaults;
+  if (!defaults) {
+    toast("请先选择项目并加载配置", "error");
+    return;
+  }
+  if (projectMetaName) projectMetaName.value = defaults.name || "";
+  if (projectMetaDescription) projectMetaDescription.value = defaults.description || "";
+  if (projectMetaEnabled) projectMetaEnabled.checked = defaults.enabled !== false;
+  toast("已载入 yaml 默认（基本信息），请修改后保存", "success");
+}
+
+function loadYamlDefaultRepos() {
+  const defaults = adminProjectYamlDefaults;
+  if (!defaults || !projectReposEditor) {
+    toast("请先选择项目并加载配置", "error");
+    return;
+  }
+  projectReposEditor.value = JSON.stringify(defaults.knowledge?.repos ?? [], null, 2);
+  toast("已载入 yaml 默认（Repos），请修改后保存", "success");
+}
+
+function loadYamlDefaultMcp() {
+  const defaults = adminProjectYamlDefaults;
+  if (!defaults || !projectMcpEditor) {
+    toast("请先选择项目并加载配置", "error");
+    return;
+  }
+  projectMcpEditor.value = JSON.stringify(defaults.mcp?.servers ?? {}, null, 2);
+  toast("已载入 yaml 默认（MCP），请修改后保存", "success");
+}
+
+function loadYamlDefaultAgents() {
+  const defaults = adminProjectYamlDefaults;
+  if (!defaults || !projectAgentsEditor) {
+    toast("请先选择项目并加载配置", "error");
+    return;
+  }
+  const content = defaults.extensions?.agents_md ?? "";
+  projectAgentsEditor.value = content;
+  syncAgentsMdTemplateSelect(content);
+  toast("已载入 yaml 默认（agents.md），请修改后保存", "success");
+}
+
+function currentProjectConfigId() {
+  return projectConfigSelect?.value || currentProjectId || "default";
+}
+
+async function patchProjectSection(path, body, label) {
+  const projectId = currentProjectConfigId();
+  const resp = await apiFetch(`/api/admin/projects/${encodeURIComponent(projectId)}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || `${label}保存失败`);
+  toast(`${label}已保存到 Redis`, "success");
+  await loadProjects();
+  await loadHealth();
+  await loadAdminProjectConfig(projectId);
+}
+
+async function saveProjectMeta() {
+  await patchProjectSection(
+    "",
+    {
+      name: projectMetaName?.value?.trim() || undefined,
+      description: projectMetaDescription?.value?.trim() ?? "",
+      enabled: projectMetaEnabled?.checked ?? true,
+    },
+    "基本信息",
+  );
+}
+
+async function saveProjectRepos() {
+  let repos;
+  try {
+    repos = JSON.parse(projectReposEditor?.value || "[]");
+  } catch {
+    toast("Repos JSON 格式无效", "error");
+    return;
+  }
+  if (!Array.isArray(repos)) {
+    toast("Repos 必须是数组", "error");
+    return;
+  }
+  await patchProjectSection("/knowledge", { repos }, "知识库");
+}
+
+async function saveProjectMcp() {
+  let servers;
+  try {
+    servers = JSON.parse(projectMcpEditor?.value || "{}");
+  } catch {
+    toast("MCP JSON 格式无效", "error");
+    return;
+  }
+  if (typeof servers !== "object" || servers === null || Array.isArray(servers)) {
+    toast("MCP servers 必须是对象", "error");
+    return;
+  }
+  await patchProjectSection(
+    "/mcp",
+    { servers },
+    "MCP",
+  );
+}
+
+async function saveProjectAgentsMd() {
+  await patchProjectSection(
+    "/extensions",
+    {
+      agents_md: projectAgentsEditor?.value ?? "",
+    },
+    "agents.md",
+  );
+}
+
+function openDashboard() {
+  if (!isAdmin) return;
+  adminViewMode = "token";
+  hideAdminPanels();
+  adminDashboard.classList.remove("hidden");
+  enterAdminChrome("Token 消耗", "管理员 · Token");
+  updateAdminNavActive();
   loadDashboard().catch((err) => toast(err.message, "error"));
-  if (dashboardPollTimer) window.clearInterval(dashboardPollTimer);
   dashboardPollTimer = window.setInterval(() => {
     loadDashboard().catch(() => {});
   }, 30000);
 }
 
-function closeDashboard() {
-  dashboardMode = false;
-  adminDashboard.classList.add("hidden");
+function closeAdminView({ restoreChat = true } = {}) {
+  adminViewMode = null;
+  hideAdminPanels();
   messagesEl.classList.remove("hidden");
   if (composerZone) composerZone.classList.remove("hidden");
-  if (dashboardPollTimer) {
-    window.clearInterval(dashboardPollTimer);
-    dashboardPollTimer = null;
-  }
+  updateAdminNavActive();
+  if (!restoreChat) return;
   if (currentChatId) {
     openChat(currentChatId).catch(() => clearChatPanel());
   } else {
@@ -1176,7 +1617,7 @@ async function loadHealth() {
     const data = await resp.json();
     modelLabelEl.textContent = data.model_label || data.model || "—";
     storageLabelEl.textContent = data.storage_backend || "—";
-    const reposResp = await apiFetch("/api/knowledge/repos");
+    const reposResp = await apiFetch(projectQuery("/api/knowledge/repos"));
     if (reposResp.ok) {
       const reposData = await reposResp.json();
       knowledgeLabelEl.textContent = Array.isArray(reposData.repos) && reposData.repos.length
@@ -1238,8 +1679,100 @@ searchInput.addEventListener("input", renderChatList);
 if (adminBoardBtn) {
   adminBoardBtn.addEventListener("click", openDashboard);
 }
+if (projectSelectEl) {
+  projectSelectEl.addEventListener("change", async () => {
+    try {
+      await switchProject(projectSelectEl.value);
+    } catch (err) {
+      toast(err.message, "error");
+    }
+  });
+}
+if (adminProjectsBtn) {
+  adminProjectsBtn.addEventListener("click", () => {
+    openProjectAdmin();
+  });
+}
+if (createProjectBtn) {
+  createProjectBtn.addEventListener("click", () => toggleCreateProjectPanel(true));
+}
+if (cancelCreateProjectBtn) {
+  cancelCreateProjectBtn.addEventListener("click", () => toggleCreateProjectPanel(false));
+}
+if (submitCreateProjectBtn) {
+  submitCreateProjectBtn.addEventListener("click", () => {
+    createProject().catch((err) => toast(err.message, "error"));
+  });
+}
+if (saveProjectMembersBtn) {
+  saveProjectMembersBtn.addEventListener("click", () => {
+    saveProjectMembers().catch((err) => toast(err.message, "error"));
+  });
+}
+if (projectConfigSelect) {
+  projectConfigSelect.addEventListener("change", () => {
+    loadAdminProjectConfig(projectConfigSelect.value).catch((err) => toast(err.message, "error"));
+  });
+}
+if (loadProjectMetaDefaultBtn) {
+  loadProjectMetaDefaultBtn.addEventListener("click", loadYamlDefaultMeta);
+}
+if (loadProjectReposDefaultBtn) {
+  loadProjectReposDefaultBtn.addEventListener("click", loadYamlDefaultRepos);
+}
+if (loadProjectMcpDefaultBtn) {
+  loadProjectMcpDefaultBtn.addEventListener("click", loadYamlDefaultMcp);
+}
+if (loadProjectAgentsDefaultBtn) {
+  loadProjectAgentsDefaultBtn.addEventListener("click", loadYamlDefaultAgents);
+}
+if (saveProjectMetaBtn) {
+  saveProjectMetaBtn.addEventListener("click", () => {
+    saveProjectMeta().catch((err) => toast(err.message, "error"));
+  });
+}
+if (saveProjectReposBtn) {
+  saveProjectReposBtn.addEventListener("click", () => {
+    saveProjectRepos().catch((err) => toast(err.message, "error"));
+  });
+}
+if (saveProjectMcpBtn) {
+  saveProjectMcpBtn.addEventListener("click", () => {
+    saveProjectMcp().catch((err) => toast(err.message, "error"));
+  });
+}
+if (saveProjectAgentsBtn) {
+  saveProjectAgentsBtn.addEventListener("click", () => {
+    saveProjectAgentsMd().catch((err) => toast(err.message, "error"));
+  });
+}
+if (projectAgentsTemplate) {
+  projectAgentsTemplate.addEventListener("change", () => {
+    applyAgentsMdTemplate(projectAgentsTemplate.value);
+  });
+}
+if (projectAgentsEditor && projectAgentsTemplate) {
+  projectAgentsEditor.addEventListener("input", () => {
+    const selected = projectAgentsTemplate.value;
+    if (selected === AGENTS_MD_CUSTOM_TEMPLATE_ID) return;
+    const templateContent = agentsMdTemplateContent(selected);
+    if ((projectAgentsEditor.value || "").trim() !== (templateContent || "").trim()) {
+      projectAgentsTemplate.value = AGENTS_MD_CUSTOM_TEMPLATE_ID;
+    }
+  });
+}
+if (reloadProjectConfigBtn) {
+  reloadProjectConfigBtn.addEventListener("click", () => {
+    loadAdminProjectConfig(projectConfigSelect?.value || currentProjectId).catch((err) =>
+      toast(err.message, "error"),
+    );
+  });
+}
 if (closeDashboardBtn) {
-  closeDashboardBtn.addEventListener("click", closeDashboard);
+  closeDashboardBtn.addEventListener("click", () => closeAdminView());
+}
+if (closeProjectAdminBtn) {
+  closeProjectAdminBtn.addEventListener("click", () => closeAdminView());
 }
 if (refreshDashboardBtn) {
   refreshDashboardBtn.addEventListener("click", () => {
@@ -1271,7 +1804,7 @@ syncKnowledgeBtn.addEventListener("click", async () => {
   settingsMenu.classList.add("hidden");
   setStatus("同步中…", "busy");
   try {
-    const resp = await apiFetch("/api/knowledge/sync", { method: "POST" });
+    const resp = await apiFetch(projectQuery("/api/knowledge/sync"), { method: "POST" });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.detail || "同步失败");
     knowledgeLabelEl.textContent = (data.synced || []).map((i) => i.repo_id).join(", ") || "已同步";
@@ -1287,7 +1820,7 @@ reloadSkillsBtn.addEventListener("click", async () => {
   settingsMenu.classList.add("hidden");
   setStatus("重载中…", "busy");
   try {
-    const resp = await apiFetch("/api/skills/reload", { method: "POST" });
+    const resp = await apiFetch(projectQuery("/api/skills/reload"), { method: "POST" });
     if (!resp.ok) {
       const data = await resp.json();
       throw new Error(data.detail || "重载失败");
@@ -1379,6 +1912,7 @@ document.querySelectorAll(".hint-card").forEach((btn) => {
 (async function bootstrap() {
   try {
     await loadMe();
+    await loadProjects();
     await loadHealth();
     await refreshChats();
     clearChatPanel();

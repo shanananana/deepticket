@@ -34,3 +34,6 @@ class AgentInput:
     repo_ids: list[str] = field(default_factory=list)
     image_urls: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    workspace_dir: str | None = None
+    mcp_config: dict[str, Any] | None = None
+    agents_md: str = ""

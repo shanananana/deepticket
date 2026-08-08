@@ -146,7 +146,13 @@ class OpenHandsEngine:
                     f"注册 LLM profile 失败: {resp.status_code} {resp.text}"
                 )
 
-    async def _load_agent_settings(self, client: httpx.AsyncClient) -> dict[str, Any]:
+    async def _load_agent_settings(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        mcp_config: dict[str, Any] | None = None,
+        agents_md: str = "",
+    ) -> dict[str, Any]:
         resp = await client.get(
             f"{self.server}/api/settings",
             headers=self._headers(),
@@ -167,6 +173,15 @@ class OpenHandsEngine:
             }
         )
         agent_settings["llm"] = llm
+        if mcp_config is not None:
+            agent_settings["mcp_config"] = copy.deepcopy(mcp_config)
+        suffix = (agents_md or "").strip()
+        if suffix:
+            agent_context = dict(agent_settings.get("agent_context") or {})
+            existing = str(agent_context.get("system_message_suffix") or "").strip()
+            merged = f"{existing}\n\n{suffix}".strip() if existing else suffix
+            agent_context["system_message_suffix"] = merged
+            agent_settings["agent_context"] = agent_context
         return agent_settings
 
     async def _start_conversation(
@@ -174,9 +189,12 @@ class OpenHandsEngine:
         client: httpx.AsyncClient,
         agent_input: AgentInput,
         agent_settings: dict[str, Any],
+        *,
+        workspace_dir: str | None = None,
     ) -> str:
+        working_dir = workspace_dir or agent_input.workspace_dir or self.workspace_dir
         body: dict[str, Any] = {
-            "workspace": {"working_dir": self.workspace_dir},
+            "workspace": {"working_dir": working_dir},
             "agent_settings": agent_settings,
             "initial_message": {
                 "role": "user",
@@ -228,6 +246,8 @@ class OpenHandsEngine:
         client: httpx.AsyncClient,
         agent_input: AgentInput,
         agent_settings: dict[str, Any],
+        *,
+        workspace_dir: str | None = None,
     ) -> str:
         if agent_input.conversation_id:
             probe = await client.get(
@@ -240,7 +260,10 @@ class OpenHandsEngine:
                 )
                 return agent_input.conversation_id
         return await self._start_conversation(
-            client, agent_input, agent_settings
+            client,
+            agent_input,
+            agent_settings,
+            workspace_dir=workspace_dir,
         )
 
     async def _fetch_conversation_error(
@@ -526,9 +549,17 @@ class OpenHandsEngine:
                 await out_queue.put(
                     StreamChunk(activity="正在连接 Agent…", activity_kind="system")
                 )
-                agent_settings = await self._load_agent_settings(client)
+                agent_settings = await self._load_agent_settings(
+                    client,
+                    mcp_config=agent_input.mcp_config,
+                    agents_md=agent_input.agents_md,
+                )
+                workspace_dir = agent_input.workspace_dir or self.workspace_dir
                 conversation_id = await self._ensure_conversation(
-                    client, agent_input, agent_settings
+                    client,
+                    agent_input,
+                    agent_settings,
+                    workspace_dir=workspace_dir,
                 )
                 self._register_cancel(conversation_id, poll_stop)
                 await out_queue.put(StreamChunk(conversation_id=conversation_id))

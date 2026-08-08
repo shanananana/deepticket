@@ -4,6 +4,7 @@ import uuid
 from typing import Any
 
 from deepticket.layers.storage.base import StorageBackend
+from deepticket.projects.store import ProjectConfigStore
 from deepticket.utils.time import utc_now_iso
 
 _NS_THREADS = "chat_threads"
@@ -14,13 +15,17 @@ _MAX_MESSAGES = 200
 
 
 class ChatHistoryStore:
-    """按 uid 隔离的聊天线程与消息历史。"""
+    """按 project + uid 隔离的聊天线程与消息历史。"""
 
     def __init__(self, storage: StorageBackend) -> None:
         self.storage = storage
 
-    def list_threads(self, uid: str) -> list[dict[str, Any]]:
-        index = self._load_index(uid)
+    @staticmethod
+    def default_project_id() -> str:
+        return ProjectConfigStore.default_project_id()
+
+    def list_threads(self, project_id: str, uid: str) -> list[dict[str, Any]]:
+        index = self._load_index(project_id, uid)
         items = index.get("threads", [])
         return sorted(
             items,
@@ -28,17 +33,30 @@ class ChatHistoryStore:
             reverse=True,
         )
 
-    def get_thread(self, uid: str, chat_id: str) -> dict[str, Any] | None:
-        doc = self.storage.get_json(_NS_THREADS, self._thread_key(uid, chat_id))
+    def get_thread(
+        self, project_id: str, uid: str, chat_id: str
+    ) -> dict[str, Any] | None:
+        doc = self.storage.get_json(
+            _NS_THREADS, self._thread_key(project_id, uid, chat_id)
+        )
         if not doc or doc.get("uid") != uid:
+            return None
+        if doc.get("project_id") and doc.get("project_id") != project_id:
             return None
         return doc
 
-    def create_thread(self, uid: str, *, title: str = "新会话") -> dict[str, Any]:
+    def create_thread(
+        self,
+        project_id: str,
+        uid: str,
+        *,
+        title: str = "新会话",
+    ) -> dict[str, Any]:
         chat_id = uuid.uuid4().hex
         now = utc_now_iso()
         doc = {
             "chat_id": chat_id,
+            "project_id": project_id,
             "uid": uid,
             "title": title[:_TITLE_MAX],
             "messages": [],
@@ -46,26 +64,31 @@ class ChatHistoryStore:
             "created_at": now,
             "updated_at": now,
         }
-        self.storage.set_json(_NS_THREADS, self._thread_key(uid, chat_id), doc)
-        self._upsert_index(uid, chat_id, doc["title"], now, search_text="")
+        self.storage.set_json(
+            _NS_THREADS, self._thread_key(project_id, uid, chat_id), doc
+        )
+        self._upsert_index(project_id, uid, chat_id, doc["title"], now, search_text="")
         return doc
 
-    def delete_thread(self, uid: str, chat_id: str) -> bool:
-        doc = self.get_thread(uid, chat_id)
+    def delete_thread(self, project_id: str, uid: str, chat_id: str) -> bool:
+        doc = self.get_thread(project_id, uid, chat_id)
         if not doc:
             return False
-        self.storage.delete(_NS_THREADS, self._thread_key(uid, chat_id))
-        index = self._load_index(uid)
+        self.storage.delete(
+            _NS_THREADS, self._thread_key(project_id, uid, chat_id)
+        )
+        index = self._load_index(project_id, uid)
         threads = [
             item
             for item in index.get("threads", [])
             if item.get("chat_id") != chat_id
         ]
-        self.storage.set_json(_NS_INDEX, uid, {"threads": threads})
+        self.storage.set_json(_NS_INDEX, self._index_key(project_id, uid), {"threads": threads})
         return True
 
     def append_message(
         self,
+        project_id: str,
         uid: str,
         chat_id: str,
         *,
@@ -75,7 +98,7 @@ class ChatHistoryStore:
         activities: list[dict[str, str]] | None = None,
         confidence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        doc = self.get_thread(uid, chat_id)
+        doc = self.get_thread(project_id, uid, chat_id)
         if not doc:
             raise KeyError(f"chat not found: {chat_id}")
 
@@ -101,8 +124,11 @@ class ChatHistoryStore:
         ):
             doc["title"] = _title_from_message(content)
 
-        self.storage.set_json(_NS_THREADS, self._thread_key(uid, chat_id), doc)
+        self.storage.set_json(
+            _NS_THREADS, self._thread_key(project_id, uid, chat_id), doc
+        )
         self._upsert_index(
+            project_id,
             uid,
             chat_id,
             doc["title"],
@@ -111,8 +137,10 @@ class ChatHistoryStore:
         )
         return doc
 
-    def rename_thread(self, uid: str, chat_id: str, title: str) -> dict[str, Any] | None:
-        doc = self.get_thread(uid, chat_id)
+    def rename_thread(
+        self, project_id: str, uid: str, chat_id: str, title: str
+    ) -> dict[str, Any] | None:
+        doc = self.get_thread(project_id, uid, chat_id)
         if not doc:
             return None
         clean = " ".join(title.strip().split())[:_TITLE_MAX]
@@ -120,8 +148,11 @@ class ChatHistoryStore:
             return doc
         doc["title"] = clean
         doc["updated_at"] = utc_now_iso()
-        self.storage.set_json(_NS_THREADS, self._thread_key(uid, chat_id), doc)
+        self.storage.set_json(
+            _NS_THREADS, self._thread_key(project_id, uid, chat_id), doc
+        )
         self._upsert_index(
+            project_id,
             uid,
             chat_id,
             clean,
@@ -131,17 +162,20 @@ class ChatHistoryStore:
         return doc
 
     def set_agent_conversation_id(
-        self, uid: str, chat_id: str, agent_conversation_id: str
+        self, project_id: str, uid: str, chat_id: str, agent_conversation_id: str
     ) -> None:
-        doc = self.get_thread(uid, chat_id)
+        doc = self.get_thread(project_id, uid, chat_id)
         if not doc:
             raise KeyError(f"chat not found: {chat_id}")
         doc["agent_conversation_id"] = agent_conversation_id
         doc["updated_at"] = utc_now_iso()
-        self.storage.set_json(_NS_THREADS, self._thread_key(uid, chat_id), doc)
+        self.storage.set_json(
+            _NS_THREADS, self._thread_key(project_id, uid, chat_id), doc
+        )
 
     def set_token_usage(
         self,
+        project_id: str,
         uid: str,
         chat_id: str,
         *,
@@ -152,7 +186,7 @@ class ChatHistoryStore:
         model: str = "",
         model_label: str = "",
     ) -> dict[str, Any]:
-        doc = self.get_thread(uid, chat_id)
+        doc = self.get_thread(project_id, uid, chat_id)
         if not doc:
             raise KeyError(f"chat not found: {chat_id}")
         now = utc_now_iso()
@@ -166,18 +200,27 @@ class ChatHistoryStore:
             "updated_at": now,
         }
         doc["updated_at"] = now
-        self.storage.set_json(_NS_THREADS, self._thread_key(uid, chat_id), doc)
+        self.storage.set_json(
+            _NS_THREADS, self._thread_key(project_id, uid, chat_id), doc
+        )
         return doc
 
     @staticmethod
-    def _thread_key(uid: str, chat_id: str) -> str:
-        return f"{uid}:{chat_id}"
+    def _thread_key(project_id: str, uid: str, chat_id: str) -> str:
+        return f"{project_id}:{uid}:{chat_id}"
 
-    def _load_index(self, uid: str) -> dict[str, Any]:
-        return self.storage.get_json(_NS_INDEX, uid) or {"threads": []}
+    @staticmethod
+    def _index_key(project_id: str, uid: str) -> str:
+        return f"{project_id}:{uid}"
+
+    def _load_index(self, project_id: str, uid: str) -> dict[str, Any]:
+        return self.storage.get_json(_NS_INDEX, self._index_key(project_id, uid)) or {
+            "threads": []
+        }
 
     def _upsert_index(
         self,
+        project_id: str,
         uid: str,
         chat_id: str,
         title: str,
@@ -185,7 +228,7 @@ class ChatHistoryStore:
         *,
         search_text: str,
     ) -> None:
-        index = self._load_index(uid)
+        index = self._load_index(project_id, uid)
         threads = [
             item for item in index.get("threads", []) if item.get("chat_id") != chat_id
         ]
@@ -197,7 +240,9 @@ class ChatHistoryStore:
                 "search_text": search_text[:_SEARCH_MAX],
             }
         )
-        self.storage.set_json(_NS_INDEX, uid, {"threads": threads})
+        self.storage.set_json(
+            _NS_INDEX, self._index_key(project_id, uid), {"threads": threads}
+        )
 
     @staticmethod
     def _build_search_text(doc: dict[str, Any]) -> str:

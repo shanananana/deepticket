@@ -8,6 +8,8 @@ from deepticket.api.streaming import sse_response
 from deepticket.auth.dependencies import get_current_user
 from deepticket.auth.user_store import AuthUser
 from deepticket.layers.input.models import ChatInput, TicketInput
+from deepticket.projects.dependencies import get_project_context
+from deepticket.projects.registry import ProjectContext
 
 router = APIRouter(prefix="/api", tags=["Agent"])
 
@@ -17,9 +19,12 @@ async def chat(
     body: ChatRequest,
     request: Request,
     user: AuthUser = Depends(get_current_user),
+    project: ProjectContext = Depends(get_project_context),
 ):
     service = get_service(request)
-    thread = service.chat_history.get_thread(user.uid, body.chat_id)
+    thread = service.chat_history.get_thread(
+        project.project_id, user.uid, body.chat_id
+    )
     if thread is None:
         raise HTTPException(status_code=404, detail="聊天不存在")
 
@@ -30,6 +35,7 @@ async def chat(
             conversation_id=conversation_id,
             image_urls=list(body.image_urls),
         ),
+        project=project,
         uid=user.uid,
         chat_id=body.chat_id,
     )
@@ -46,6 +52,7 @@ async def ticket(
     body: TicketRequest,
     request: Request,
     user: AuthUser = Depends(get_current_user),
+    project: ProjectContext = Depends(get_project_context),
 ):
     service = get_service(request)
     chunks = service.run_ticket_stream(
@@ -56,7 +63,8 @@ async def ticket(
             repo_ids=body.repo_ids,
             logs=body.logs,
             image_urls=list(body.image_urls),
-        )
+        ),
+        project=project,
     )
     return sse_response(
         chunks,

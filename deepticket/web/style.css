@@ -1759,7 +1759,13 @@ h4.md-h.md-callout-heading {
 
 /* Admin token usage -------------------------------------------------------- */
 
-.admin-board-btn { margin-bottom: 10px; }
+.admin-board-btn { margin-bottom: 8px; }
+
+.admin-board-btn.active {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--text);
+}
 
 .admin-dashboard {
   flex: 1;
@@ -1878,6 +1884,143 @@ h4.md-h.md-callout-heading {
   font-size: 10px;
   color: var(--text-faint);
   word-break: break-all;
+}
+
+.project-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.project-select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.project-config-editor {
+  width: 100%;
+  min-height: 320px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.project-config-editor-sm {
+  min-height: 140px;
+  margin-top: 10px;
+}
+
+.project-config-sections {
+  display: grid;
+  gap: 16px;
+}
+
+.project-config-block {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.project-config-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.project-config-block-head h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.project-config-block-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.project-config-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.project-config-fields label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.project-config-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.project-config-check {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  grid-auto-flow: column;
+}
+
+.project-config-note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.project-member-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  min-height: 24px;
+}
+
+.project-member-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  color: var(--text);
+}
+
+.project-member-tags.empty::before {
+  content: "暂无成员（非管理员用户需在此添加后才能访问该项目）";
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dashboard-header.compact {
+  margin-bottom: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {

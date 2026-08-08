@@ -22,6 +22,44 @@ class ChatRequest(BaseModel):
 
 class CreateChatRequest(BaseModel):
     title: str = Field(default="新会话", max_length=48)
+    project_id: str = Field(default="default", min_length=1, max_length=64)
+
+
+class ProjectMemberRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=32)
+
+
+class ProjectConfigRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=128)
+    description: str = Field(default="", max_length=512)
+    enabled: bool = True
+    knowledge: dict = Field(default_factory=dict)
+    mcp: dict = Field(default_factory=dict)
+    extensions: dict = Field(default_factory=dict)
+
+
+class ProjectMetaPatchRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    description: str | None = Field(default=None, max_length=512)
+    enabled: bool | None = None
+
+
+class ProjectKnowledgePatchRequest(BaseModel):
+    repos: list[dict] = Field(default_factory=list)
+
+
+class ProjectMcpPatchRequest(BaseModel):
+    servers: dict = Field(default_factory=dict)
+
+
+class ProjectExtensionsPatchRequest(BaseModel):
+    user_skills_dir: str | None = None
+    agents_md: str | None = None
+
+
+class ProjectMembersUpdateRequest(BaseModel):
+    usernames: list[str] = Field(default_factory=list)
 
 
 class RenameChatRequest(BaseModel):

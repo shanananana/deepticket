@@ -13,10 +13,17 @@ from deepticket.service import DeepTicketService
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     async def _noop_startup(self: DeepTicketService) -> None:
-        self.users.ensure_bootstrap_user(
+        bootstrap_user = self.users.ensure_bootstrap_user(
             self.config.auth.bootstrap_username,
             self.config.auth.bootstrap_password,
         )
+        if bootstrap_user is not None:
+            self.projects.bootstrap(
+                bootstrap_uid=bootstrap_user.uid,
+                bootstrap_username=bootstrap_user.username,
+            )
+        else:
+            self.projects.config_store.ensure_default_project()
 
     monkeypatch.setattr(DeepTicketService, "startup", _noop_startup)
     with TestClient(create_app()) as test_client:
@@ -116,7 +123,10 @@ def test_auth_register_login_flow(client: TestClient):
     assert me.status_code == 200
     assert me.json()["user"]["username"] == username
 
-    chats = client.get("/api/chats", headers={"Authorization": f"Bearer {token}"})
+    chats = client.get(
+        "/api/chats?project_id=default",
+        headers={"Authorization": f"Bearer {token}"},
+    )
     assert chats.status_code == 200
 
 
@@ -136,18 +146,22 @@ def test_chat_rename_flow(client: TestClient):
     token = _register_and_login(client, f"rename_{uuid.uuid4().hex[:6]}")
     headers = {"Authorization": f"Bearer {token}"}
 
-    created = client.post("/api/chats", json={"title": "旧名字"}, headers=headers)
+    created = client.post(
+        "/api/chats",
+        json={"title": "旧名字", "project_id": "default"},
+        headers=headers,
+    )
     chat_id = created.json()["chat"]["chat_id"]
 
     renamed = client.patch(
-        f"/api/chats/{chat_id}",
+        f"/api/chats/{chat_id}?project_id=default",
         json={"title": "新名字"},
         headers=headers,
     )
     assert renamed.status_code == 200
     assert renamed.json()["chat"]["title"] == "新名字"
 
-    got = client.get(f"/api/chats/{chat_id}", headers=headers)
+    got = client.get(f"/api/chats/{chat_id}?project_id=default", headers=headers)
     assert got.json()["chat"]["title"] == "新名字"
 
 
@@ -156,13 +170,23 @@ def test_chat_isolation_between_users(client: TestClient):
     t2 = _register_and_login(client, f"iso_b_{uuid.uuid4().hex[:6]}")
 
     h1 = {"Authorization": f"Bearer {t1}"}
-    created = client.post("/api/chats", json={"title": "私有"}, headers=h1)
+    created = client.post(
+        "/api/chats",
+        json={"title": "私有", "project_id": "default"},
+        headers=h1,
+    )
     chat_id = created.json()["chat"]["chat_id"]
 
     # 用户 B 无法访问用户 A 的会话
-    resp = client.get(f"/api/chats/{chat_id}", headers={"Authorization": f"Bearer {t2}"})
+    resp = client.get(
+        f"/api/chats/{chat_id}?project_id=default",
+        headers={"Authorization": f"Bearer {t2}"},
+    )
     assert resp.status_code == 404
-    resp = client.delete(f"/api/chats/{chat_id}", headers={"Authorization": f"Bearer {t2}"})
+    resp = client.delete(
+        f"/api/chats/{chat_id}?project_id=default",
+        headers={"Authorization": f"Bearer {t2}"},
+    )
     assert resp.status_code == 404
 
 

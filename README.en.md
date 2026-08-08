@@ -20,11 +20,12 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**A self-hosted SRE Agent orchestration layer for business teams** ([latest v0.1.2](https://github.com/shanananana/deepticket/releases/tag/v0.1.2)) — **does not replace** company-wide AIOps / Copilot platforms. It plugs into your existing **MCP servers, logs, config center, and ITSM** on [OpenHands](https://github.com/OpenHands/OpenHands) with Ingress/Webhook loops so agents triage on **Git source + logs + config** with auditable reasoning, Thinking steps, and **analysis confidence**.
+**A self-hosted SRE Agent orchestration layer for business teams** ([latest v0.2.0](https://github.com/shanananana/deepticket/releases/tag/v0.2.0)) — **does not replace** company-wide AIOps / Copilot platforms. It plugs into your existing **MCP servers, logs, config center, and ITSM** on [OpenHands](https://github.com/OpenHands/OpenHands) with Ingress/Webhook loops so agents triage on **Git source + logs + config** with auditable reasoning, Thinking steps, and **analysis confidence**. **One instance can serve multiple teams/projects**, each with its own knowledge base, MCP, and agents.md.
 
 Keywords: AIOps · SRE · on-call · enterprise · business team · self-hosted · MCP integration · orchestration · incident triage · root cause analysis · LLM agent · FastAPI
 
 - **Thin orchestration layer** — Self-hosted deployment, yaml wiring; **coexists** with monitoring / ITSM / config—no fight for the “platform agent” slot
+- **Multi-team / multi-project** — One DeepTicket for multiple business lines; per-project repos, MCP, agents.md, and workspace; sidebar switch + sectional admin config
 - **MCP / Skill extensions** — Mount internal MCP (logs, config, CMDB…) that platform agents rarely expose at this granularity
 - **Ingress / Outbound** — Alerts and tickets in; analysis back via Webhook
 - **Workbench** — Multi-turn chat, Thinking steps, confidence; SSE heartbeat for proxies
@@ -97,7 +98,9 @@ Mature orgs already have rich infra. DeepTicket **does not fight it**:
 | Internal MCP servers (CMDB, deploy, monitoring…) | Mount in `deepticket.yaml`; agent calls on demand |
 | Company AIOps / Copilot platform | **Coexist**—self-hosted team layer, no platform roadmap dependency |
 
-**Typical rollout:** a business team clones DeepTicket → fills `deepticket.yaml` (LLM key + **multiple team Git repos**) → mounts internal MCP / Skills **as needed** → on-call uses the workbench; monitoring/tickets flow through Ingress. Data stays in the team—**no waiting on company-wide agent platform scheduling**.
+**Typical rollout:** a business team clones DeepTicket → fills `deepticket.yaml` (LLM key + default Git / MCP fallback) → **per project**, mount each team’s repos and MCP → on-call switches projects in the sidebar; monitoring/tickets flow through Ingress. Data stays in the team—**no waiting on company-wide agent platform scheduling**.
+
+**Multi-team setup:** register multiple projects (e.g. `ad-agent`, `payment`, `infra`) on one instance. Each project has its own Git knowledge, MCP list, agents.md, and Agent workspace. `deepticket.yaml` is the default fallback; runtime config lives in Redis. Admins edit and save **section by section** in the workbench—no need to replace the full config at once.
 
 Vertical agents like [ad_agent](https://github.com/shanananana/ad_agent) handle domain chat; DeepTicket **wires infra and runs the SRE pipeline**—they compose, not compete.
 
@@ -112,6 +115,7 @@ Vertical agents like [ad_agent](https://github.com/shanananana/ad_agent) handle 
 | Production logs / config | Manual ingest | Rarely internal MCP granularity | Limited | ✅ Skill / **MCP** (your existing services) |
 | Coexist with ITSM / monitoring | ❌ | Often tied to one platform | Partial | ✅ Ingress + Webhook, **incremental wiring** |
 | Team self-host / pilot | Medium | Wait for platform roadmap | SaaS-first | ✅ Self-host + yaml, multiple repos, **no platform slot fight** |
+| **Multi-team / multi-project isolation** | Weak | Often single tenant | Per product | ✅ Sidebar project switch; per-project repos / MCP / agents.md / workspace |
 | Auto-trigger from alerts/tickets | ❌ | Weak | Partial | ✅ Ingress + async queue |
 | Engineer chat + confidence | Chat | Yes | Weak | ✅ Workbench + SSE + confidence |
 | Out-of-the-box | Low (embeddings / vector DB / ingest) | High (SaaS) | Higher (SaaS) | ✅ LLM key + Git repos; log/config MCP optional |
@@ -124,6 +128,24 @@ Vertical agents like [ad_agent](https://github.com/shanananana/ad_agent) handle 
 |----------|--------|
 | Author’s team internal pilot | 🟢 Ticket triage, project Q&A, Ingress integration tests |
 | Public production stories | 🟡 None yet — share yours in [Issues](https://github.com/shanananana/deepticket/issues) (anonymous OK) |
+
+---
+
+## Multi-team / multi-project
+
+One DeepTicket instance can serve multiple business lines without deploying a separate agent stack per team:
+
+| Aspect | Details |
+|--------|---------|
+| **Project switch** | Sidebar project selector; chats, knowledge, and Skill publish are scoped by `project_id` |
+| **Per-project config** | Git repos, MCP servers, agents.md (OpenHands system prompt suffix) |
+| **Storage** | **Redis at runtime**; `deepticket.yaml` as fallback for unset fields |
+| **Admin UI** | Sidebar **Token usage** and **Project settings** as separate entries; sectional editors (meta / members / repos / MCP / agents.md) with per-section yaml defaults |
+| **Permissions** | Per-project member lists (API); admins see all projects |
+
+Create projects or edit MCP in sidebar **Project settings** (admin), or via `PUT/PATCH /api/admin/projects/{id}` for CI / ops scripts.
+
+> **Note:** Ingress ticket flow still uses the `default` project today; multi-project mainly covers **workbench Q&A** and **per-project knowledge / MCP**. Ingress routing by `project_id` may follow later.
 
 ---
 
@@ -159,11 +181,13 @@ Everything lives in **`deepticket.yaml`** (copy from `deepticket.example.yaml`; 
 | Section | Purpose |
 |---------|---------|
 | `llm` | Model and API key |
-| `knowledge.repos` | Read-only Git repos |
+| `knowledge.repos` | Default Git repos (overridable per project in admin UI) |
 | `ingress` | External tickets/alerts in, Webhook out |
-| `storage` | Local or Redis |
+| `storage` | Local or **Redis** (recommended for multi-project config, chat history, ACL) |
 | `web` | Workbench SSE heartbeat interval (`sse_heartbeat_seconds`) |
-| `extensions` / `mcp` | Skills and MCP |
+| `extensions` / `mcp` | Default Skills and MCP; overridable per project in admin UI |
+
+**Multi-project runtime config** is stored in Redis (`project_configs`), not hot-reloaded from yaml. Admin API: `GET/PATCH /api/admin/projects/{id}` plus `/knowledge`, `/mcp`, `/extensions`, `/members`.
 
 Wire logs/config via `log-query` / `config-query` Skill templates or MCP. See **`deepticket.example.yaml`** for field comments.
 
@@ -171,7 +195,7 @@ Wire logs/config via `log-query` / `config-query` Skill templates or MCP. See **
 
 ## Usage
 
-**Web workbench** — Log in → new chat → describe the issue or paste logs → sync knowledge when needed → iterate. Enable **record mode** in settings to keep Agent steps expanded for demos. **Confidence** badges appear on analysis runs with verification steps (hidden for casual chat). Set **`web.sse_heartbeat_seconds`** in `deepticket.yaml` when deploying behind idle-timeout proxies.
+**Web workbench** — Log in → **select project** → new chat → describe the issue or paste logs → sync knowledge when needed → iterate. Enable **record mode** in settings to keep Agent steps expanded for demos. **Confidence** badges appear on analysis runs with verification steps (hidden for casual chat). Set **`web.sse_heartbeat_seconds`** in `deepticket.yaml` when deploying behind idle-timeout proxies.
 
 **Automation** — Push events from monitoring/ITSM; DeepTicket analyzes asynchronously and callbacks via Webhook or store-only. Usually yaml only, no core code changes. Local test: `bash scripts/test_ingress_e2e.sh`.
 
@@ -209,6 +233,11 @@ bash scripts/verify.sh --online
 <details>
 <summary><strong>Can I integrate Jira or monitoring alerts?</strong></summary>
 <p>Yes — HTTP POST to Ingress with API key; results via Webhook. See <code>deepticket.example.yaml</code> and <code>bash scripts/test_ingress_e2e.sh</code>.</p>
+</details>
+
+<details>
+<summary><strong>How do I onboard multiple teams / projects?</strong></summary>
+<p>Enable Redis storage, then open sidebar <strong>Project settings</strong> (admin, below Token usage) to create projects and configure Git repos, MCP, and agents.md per project. Users switch projects in the sidebar; chats and knowledge are isolated. Fields in <code>deepticket.yaml</code> are fallbacks only—admin saves go to Redis first.</p>
 </details>
 
 ---
