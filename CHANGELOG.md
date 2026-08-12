@@ -10,6 +10,21 @@
 
 ---
 
+## [0.2.1] - 2026-08-12
+
+### Fixed
+
+- **工作台聊天持久化**：SSE 与 Agent 执行解耦；用户关页或网络断连后，Agent 仍在后台完成并将 assistant 回复写入聊天历史
+- **重新打开对话**：若上次 Agent 仍在运行（`agent_run_status: running`），工作台自动等待并展示完整回复；断连后也会轮询恢复
+- **停止按钮**：仍通过 `/api/agent/cancel` 主动终止（与关页行为区分）；cancel 请求支持 `chat_id`
+
+### Added
+
+- **后台 Chat Run**：`ChatRunManager` 管理 Agent 任务与 SSE 订阅；聊天 API 返回 `agent_run_status`
+- **测试**：`tests/test_chat_runs.py`（断连后仍持久化 assistant 消息）
+
+---
+
 ## [0.2.0] - 2026-08-09
 
 ### Added
@@ -89,9 +104,10 @@
 
 - [English Changelog](CHANGELOG.en.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased 对比 v0.2.0](https://github.com/shanananana/deepticket/compare/v0.2.0...HEAD)
+- [Unreleased 对比 v0.2.1](https://github.com/shanananana/deepticket/compare/v0.2.1...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/shanananana/deepticket/releases/tag/v0.2.1
 [0.2.0]: https://github.com/shanananana/deepticket/releases/tag/v0.2.0
 [0.1.2]: https://github.com/shanananana/deepticket/releases/tag/v0.1.2
 [0.1.1]: https://github.com/shanananana/deepticket/compare/v0.1.0...v0.1.1

@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**面向业务组内网部署的 SRE Agent 编排层**（[最新 v0.2.0](https://github.com/shanananana/deepticket/releases/tag/v0.2.0)）— **不替换**公司级 AIOps / Copilot 平台，而是接你们已有的 **MCP、日志、配置中心、ITSM**，在 [OpenHands](https://github.com/OpenHands/OpenHands) 之上做 Ingress/Webhook 闭环；**一套服务可接多团队多项目**，每项目独立知识库 / MCP / agents.md，让 Agent 在 **Git 源码 + 日志 + 配置** 三源上可复核排障；工作台含 Thinking 步骤与**分析置信度**。
+**面向业务组内网部署的 SRE Agent 编排层**（[最新 v0.2.1](https://github.com/shanananana/deepticket/releases/tag/v0.2.1)）— **不替换**公司级 AIOps / Copilot 平台，而是接你们已有的 **MCP、日志、配置中心、ITSM**，在 [OpenHands](https://github.com/OpenHands/OpenHands) 之上做 Ingress/Webhook 闭环；**一套服务可接多团队多项目**，每项目独立知识库 / MCP / agents.md，让 Agent 在 **Git 源码 + 日志 + 配置** 三源上可复核排障；工作台含 Thinking 步骤与**分析置信度**。
 
 关键词：AIOps · SRE · on-call · 企业内网 · 业务组 · 自托管 · MCP 集成 · 编排层 · 工单自动化 · 故障根因分析 · LLM Agent · FastAPI
 
@@ -197,7 +197,7 @@ DeepTicket 的定位：**业务组级薄编排层** — 统一 Ingress 进、Web
 
 ## 使用方式
 
-**Web 工作台** — 登录 → **选择项目** → 新建对话 → 描述问题或粘贴日志 → 需要时「同步知识库」→ 多轮追问直至缩小范围。设置里可开 **录屏模式**，Agent 步骤会保持展开；含读代码/查日志等验证步骤的分析对话会展示 **置信度** 徽章（纯寒暄不展示）。网关前部署时可在 `deepticket.yaml` 配置 **`web.sse_heartbeat_seconds`** 保持 SSE 长连接。
+**Web 工作台** — 登录 → **选择项目** → 新建对话 → 描述问题或粘贴日志 → 需要时「同步知识库」→ 多轮追问直至缩小范围。Agent 在后台运行，**关页后回复仍会写入历史**，重新打开同一对话即可查看。设置里可开 **录屏模式**，Agent 步骤会保持展开；含读代码/查日志等验证步骤的分析对话会展示 **置信度** 徽章（纯寒暄不展示）。网关前部署时可在 `deepticket.yaml` 配置 **`web.sse_heartbeat_seconds`** 保持 SSE 长连接。
 
 **外部系统自动化** — 监控/ITSM/Jira 等 HTTP 推送事件，DeepTicket 异步分析后 Webhook 回写或仅存库；一般只需改 yaml，不必改主程序。本地联调：`bash scripts/test_ingress_e2e.sh`。
 

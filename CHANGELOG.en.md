@@ -10,6 +10,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.2.1] - 2026-08-12
+
+### Fixed
+
+- **Workbench chat persistence**: SSE decoupled from agent execution—closing the tab or losing the stream no longer drops in-progress replies; the agent finishes in the background and persists the assistant message
+- **Reopen conversation**: if the agent is still running (`agent_run_status: running`), the workbench waits and shows the full reply; polling also recovers after disconnect
+- **Stop button**: still cancels via `/api/agent/cancel` (distinct from closing the tab); cancel accepts `chat_id`
+
+### Added
+
+- **Background chat runs**: `ChatRunManager` runs agents independently of SSE subscribers; chat API exposes `agent_run_status`
+- **Tests**: `tests/test_chat_runs.py` (assistant message persisted after subscriber disconnect)
+
+---
+
 ## [0.2.0] - 2026-08-09
 
 ### Added
@@ -89,9 +104,10 @@ First public **Alpha** release.
 
 - [中文更新日志](CHANGELOG.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased vs v0.2.0](https://github.com/shanananana/deepticket/compare/v0.2.0...HEAD)
+- [Unreleased vs v0.2.1](https://github.com/shanananana/deepticket/compare/v0.2.1...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/shanananana/deepticket/releases/tag/v0.2.1
 [0.2.0]: https://github.com/shanananana/deepticket/releases/tag/v0.2.0
 [0.1.2]: https://github.com/shanananana/deepticket/releases/tag/v0.1.2
 [0.1.1]: https://github.com/shanananana/deepticket/compare/v0.1.0...v0.1.1

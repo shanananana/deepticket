@@ -29,16 +29,21 @@ async def chat(
         raise HTTPException(status_code=404, detail="聊天不存在")
 
     conversation_id = body.conversation_id or thread.get("agent_conversation_id")
-    chunks = service.run_chat_stream(
-        ChatInput(
-            message=body.message,
-            conversation_id=conversation_id,
-            image_urls=list(body.image_urls),
-        ),
-        project=project,
-        uid=user.uid,
-        chat_id=body.chat_id,
-    )
+    try:
+        chunks = service.run_chat_stream(
+            ChatInput(
+                message=body.message,
+                conversation_id=conversation_id,
+                image_urls=list(body.image_urls),
+            ),
+            project=project,
+            uid=user.uid,
+            chat_id=body.chat_id,
+        )
+    except RuntimeError as exc:
+        if "进行中的 Agent" in str(exc):
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     heartbeat = service.config.web.sse_heartbeat_seconds
     return sse_response(
         chunks,
@@ -76,10 +81,21 @@ async def ticket(
 async def cancel_agent(
     body: CancelAgentRequest,
     request: Request,
-    _: AuthUser = Depends(get_current_user),
+    user: AuthUser = Depends(get_current_user),
+    project: ProjectContext = Depends(get_project_context),
 ) -> OkResponse:
     service = get_service(request)
-    ok = await service.engine.cancel_conversation(body.conversation_id)
+    if body.chat_id:
+        ok = await service.chat_runs.cancel_chat(
+            project_id=project.project_id,
+            uid=user.uid,
+            chat_id=body.chat_id,
+            conversation_id=body.conversation_id,
+        )
+    elif body.conversation_id:
+        ok = await service.engine.cancel_conversation(body.conversation_id)
+    else:
+        raise HTTPException(status_code=400, detail="需要 conversation_id 或 chat_id")
     if not ok:
         raise HTTPException(status_code=404, detail="未找到运行中的 Agent 会话")
     return OkResponse()

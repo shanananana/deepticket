@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**A self-hosted SRE Agent orchestration layer for business teams** ([latest v0.2.0](https://github.com/shanananana/deepticket/releases/tag/v0.2.0)) — **does not replace** company-wide AIOps / Copilot platforms. It plugs into your existing **MCP servers, logs, config center, and ITSM** on [OpenHands](https://github.com/OpenHands/OpenHands) with Ingress/Webhook loops so agents triage on **Git source + logs + config** with auditable reasoning, Thinking steps, and **analysis confidence**. **One instance can serve multiple teams/projects**, each with its own knowledge base, MCP, and agents.md.
+**A self-hosted SRE Agent orchestration layer for business teams** ([latest v0.2.1](https://github.com/shanananana/deepticket/releases/tag/v0.2.1)) — **does not replace** company-wide AIOps / Copilot platforms. It plugs into your existing **MCP servers, logs, config center, and ITSM** on [OpenHands](https://github.com/OpenHands/OpenHands) with Ingress/Webhook loops so agents triage on **Git source + logs + config** with auditable reasoning, Thinking steps, and **analysis confidence**. **One instance can serve multiple teams/projects**, each with its own knowledge base, MCP, and agents.md.
 
 Keywords: AIOps · SRE · on-call · enterprise · business team · self-hosted · MCP integration · orchestration · incident triage · root cause analysis · LLM agent · FastAPI
 
@@ -195,7 +195,7 @@ Wire logs/config via `log-query` / `config-query` Skill templates or MCP. See **
 
 ## Usage
 
-**Web workbench** — Log in → **select project** → new chat → describe the issue or paste logs → sync knowledge when needed → iterate. Enable **record mode** in settings to keep Agent steps expanded for demos. **Confidence** badges appear on analysis runs with verification steps (hidden for casual chat). Set **`web.sse_heartbeat_seconds`** in `deepticket.yaml` when deploying behind idle-timeout proxies.
+**Web workbench** — Log in → **select project** → new chat → describe the issue or paste logs → sync knowledge when needed → iterate. Agents run in the background—**replies are saved even if you close the tab**; reopen the same chat to read them. Enable **record mode** in settings to keep Agent steps expanded for demos. **Confidence** badges appear on analysis runs with verification steps (hidden for casual chat). Set **`web.sse_heartbeat_seconds`** in `deepticket.yaml` when deploying behind idle-timeout proxies.
 
 **Automation** — Push events from monitoring/ITSM; DeepTicket analyzes asynchronously and callbacks via Webhook or store-only. Usually yaml only, no core code changes. Local test: `bash scripts/test_ingress_e2e.sh`.
 

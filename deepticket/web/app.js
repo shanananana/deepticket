@@ -915,6 +915,7 @@ async function openChat(chatId) {
   setStatus("就绪");
   closeSidebarMobile();
   promptEl.focus();
+  resumePendingAssistant(data.chat).catch((err) => toast(err.message, "error"));
 }
 
 async function createChat() {
@@ -938,19 +939,62 @@ async function createChat() {
  * 发送消息（流式 + Markdown 增量渲染）
  * ------------------------------------------------------------------------ */
 
-async function pollChatForReply(chatId, baselineCount) {
-  for (let attempt = 0; attempt < 15; attempt += 1) {
+async function pollChatForReply(chatId, baselineCount, { maxAttempts = 15 } = {}) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     await new Promise((resolve) => window.setTimeout(resolve, 2000));
     const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
     const data = await resp.json();
     if (!resp.ok) continue;
-    const messages = data.chat?.messages || [];
+    const chat = data.chat || {};
+    const messages = chat.messages || [];
     if (messages.length > baselineCount) {
       const last = messages[messages.length - 1];
-      if (last?.role === "assistant" && last.content) return last;
+      if (last?.role === "assistant" && last.content) return { chat, message: last };
+    }
+    if (chat.agent_run_status === "failed") return { chat, message: null };
+    if (chat.agent_run_status === "idle" && messages.length > baselineCount) {
+      const last = messages[messages.length - 1];
+      if (last?.role === "assistant") return { chat, message: last };
     }
   }
   return null;
+}
+
+function chatNeedsAssistantWait(chat) {
+  const messages = chat?.messages || [];
+  if (!messages.length) return false;
+  const last = messages[messages.length - 1];
+  return last.role === "user" && chat.agent_run_status === "running";
+}
+
+async function waitForAssistantReply(chatId, baselineCount) {
+  const result = await pollChatForReply(chatId, baselineCount, { maxAttempts: 90 });
+  return result?.chat || null;
+}
+
+async function resumePendingAssistant(chat) {
+  if (!chatNeedsAssistantWait(chat)) return;
+  const baselineCount = (chat.messages || []).length;
+  setBusy(true);
+  setStatus("Agent 仍在分析…", "busy");
+  const { body, content, thinking } = createAssistantShell(true, { recordMode });
+  content.classList.add("placeholder");
+  content.textContent = "Agent 仍在后台分析，等待回复…";
+  thinking.addActivity("已重新连接对话，等待 Agent 完成…", "system");
+  try {
+    const updated = await waitForAssistantReply(chat.chat_id, baselineCount);
+    if (!updated || currentChatId !== chat.chat_id) return;
+    renderHistory(updated.messages || []);
+    await refreshChats();
+    if (updated.title) chatTitleEl.textContent = updated.title;
+    setStatus("就绪");
+    toast("回复已就绪", "success");
+  } catch (err) {
+    toast(err.message || "等待回复失败", "error");
+    setStatus("就绪");
+  } finally {
+    setBusy(false);
+  }
 }
 
 function parseImageUrls(raw) {
@@ -959,6 +1003,8 @@ function parseImageUrls(raw) {
     .map((item) => item.trim())
     .filter((item) => /^https?:\/\//i.test(item));
 }
+
+let userStoppedRun = false;
 
 async function sendMessage(text) {
   const message = text.trim();
@@ -1050,7 +1096,23 @@ async function sendMessage(text) {
     for (;;) {
       if (signal.aborted) {
         await reader.cancel();
-        break;
+        thinking.stop();
+        if (userStoppedRun) {
+          setStatus("已停止", "error");
+        } else {
+          setStatus("连接已断开，Agent 仍在后台分析…", "busy");
+          const activeChatId = currentChatId;
+          pollChatForReply(activeChatId, baselineCount, { maxAttempts: 90 })
+            .then((result) => {
+              if (!result?.message || currentChatId !== activeChatId) return;
+              renderHistory(result.chat.messages || []);
+              refreshChats().catch(() => {});
+              setStatus("已从服务端恢复回复", "ready");
+              toast("回复已就绪", "success");
+            })
+            .catch(() => {});
+        }
+        return;
       }
       const { value, done } = await reader.read();
       if (done) break;
@@ -1129,12 +1191,6 @@ async function sendMessage(text) {
       }
     }
 
-    if (signal.aborted) {
-      thinking.stop();
-      setStatus("已停止", "error");
-      return;
-    }
-
     if (renderScheduled) flushRender();
     content.classList.remove("streaming");
 
@@ -1160,26 +1216,42 @@ async function sendMessage(text) {
   } catch (err) {
     if (err.name === "AbortError") {
       thinking.stop();
-      setStatus("已停止", "error");
+      if (userStoppedRun) {
+        setStatus("已停止", "error");
+      } else {
+        setStatus("连接已断开，Agent 仍在后台分析…", "busy");
+        const activeChatId = currentChatId;
+        pollChatForReply(activeChatId, baselineCount, { maxAttempts: 90 })
+          .then((result) => {
+            if (!result?.message || currentChatId !== activeChatId) return;
+            renderHistory(result.chat.messages || []);
+            refreshChats().catch(() => {});
+            setStatus("已从服务端恢复回复", "ready");
+          })
+          .catch(() => {});
+      }
       return;
     }
     const recovered = await pollChatForReply(currentChatId, baselineCount);
-    if (recovered?.content) {
+    if (recovered?.message?.content) {
       thinking.finish(true);
       content.classList.remove("placeholder", "streaming");
-      content.innerHTML = renderMarkdown(recovered.content);
+      content.innerHTML = renderMarkdown(recovered.message.content);
       bindCodeCopy(content);
-      addToolbar(body, recovered.content);
-      if (Array.isArray(recovered.activities) && recovered.activities.length) {
-        body.insertBefore(createStaticThinkingBlock(recovered.activities), content);
+      addToolbar(body, recovered.message.content);
+      if (Array.isArray(recovered.message.activities) && recovered.message.activities.length) {
+        body.insertBefore(createStaticThinkingBlock(recovered.message.activities), content);
       }
-      if (recovered.confidence) attachConfidence(body, recovered.confidence, recovered.activities);
+      if (recovered.message.confidence) {
+        attachConfidence(body, recovered.message.confidence, recovered.message.activities);
+      }
       setStatus("已从服务端恢复回复", "ready");
       await refreshChats();
       return;
     }
     fail(err.message);
   } finally {
+    userStoppedRun = false;
     chatAbortController = null;
     setBusy(false);
     promptEl.focus();
@@ -1878,13 +1950,17 @@ promptEl.addEventListener("keydown", (e) => {
 });
 
 stopBtn.addEventListener("click", async () => {
+  userStoppedRun = true;
   if (chatAbortController) chatAbortController.abort();
-  if (agentConversationId) {
+  if (currentChatId || agentConversationId) {
     try {
-      await apiFetch("/api/agent/cancel", {
+      await apiFetch(projectQuery("/api/agent/cancel"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: agentConversationId }),
+        body: JSON.stringify({
+          conversation_id: agentConversationId,
+          chat_id: currentChatId,
+        }),
       });
     } catch {
       /* 忽略 cancel 失败 */

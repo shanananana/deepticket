@@ -126,4 +126,5 @@ class OkResponse(BaseModel):
 
 
 class CancelAgentRequest(BaseModel):
-    conversation_id: str = Field(min_length=1)
+    conversation_id: str | None = Field(default=None, min_length=1)
+    chat_id: str | None = Field(default=None, min_length=1)

@@ -18,6 +18,8 @@ def _chat_payload(thread: dict) -> dict:
         "title": thread["title"],
         "messages": thread.get("messages", []),
         "agent_conversation_id": thread.get("agent_conversation_id"),
+        "agent_run_status": thread.get("agent_run_status", "idle"),
+        "agent_run_error": thread.get("agent_run_error"),
         "created_at": thread.get("created_at"),
         "updated_at": thread.get("updated_at"),
     }

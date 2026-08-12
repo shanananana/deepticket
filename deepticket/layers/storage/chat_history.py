@@ -173,6 +173,28 @@ class ChatHistoryStore:
             _NS_THREADS, self._thread_key(project_id, uid, chat_id), doc
         )
 
+    def set_agent_run_status(
+        self,
+        project_id: str,
+        uid: str,
+        chat_id: str,
+        *,
+        status: str,
+        error: str | None = None,
+    ) -> None:
+        doc = self.get_thread(project_id, uid, chat_id)
+        if not doc:
+            raise KeyError(f"chat not found: {chat_id}")
+        doc["agent_run_status"] = status
+        if error:
+            doc["agent_run_error"] = error[:500]
+        elif "agent_run_error" in doc:
+            doc.pop("agent_run_error", None)
+        doc["updated_at"] = utc_now_iso()
+        self.storage.set_json(
+            _NS_THREADS, self._thread_key(project_id, uid, chat_id), doc
+        )
+
     def set_token_usage(
         self,
         project_id: str,

@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
@@ -10,6 +11,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from deepticket.auth.user_store import AuthUser, UserStore
+from deepticket.chat_runs import ChatRunManager
 from deepticket.config.mcp_loader import filter_enabled_servers, validate_mcp_servers
 from deepticket.config.routing_schema import RoutingConfig
 from deepticket.config.schema import AppConfig
@@ -85,6 +87,7 @@ class DeepTicketService:
         self.routing = RoutingConfig(routes=list(config.ingress.routes))
         self._ingress_queue = IngressJobQueue(workers=config.ingress.queue_workers)
         _metrics.queue_backlog_alert = config.ingress.queue_backlog_alert
+        self.chat_runs = ChatRunManager(self)
 
     @staticmethod
     def _resolve_path(raw: str) -> Path:
@@ -547,75 +550,43 @@ class DeepTicketService:
         uid: str | None = None,
         chat_id: str | None = None,
     ) -> AsyncIterator[StreamChunk]:
+        if not uid or not chat_id:
+            agent_input = InputAdapter.from_chat(payload)
+            self.apply_project_runtime(agent_input, project)
+            async for chunk in self._run_stream(agent_input):
+                yield chunk
+            return
+
         agent_input = InputAdapter.from_chat(payload)
         self.apply_project_runtime(agent_input, project)
-        project_id = project.project_id
 
-        if uid and chat_id:
-            thread = self.chat_history.get_thread(project_id, uid, chat_id)
-            if thread is None:
-                raise RuntimeError(f"聊天不存在: {chat_id}")
-            if thread.get("agent_conversation_id") and not agent_input.conversation_id:
-                agent_input.conversation_id = thread["agent_conversation_id"]
-            self.chat_history.append_message(
-                project_id, uid, chat_id, role="user", content=payload.message.strip()
-            )
+        thread = self.chat_history.get_thread(project.project_id, uid, chat_id)
+        if thread is None:
+            raise RuntimeError(f"聊天不存在: {chat_id}")
+        if thread.get("agent_conversation_id") and not agent_input.conversation_id:
+            agent_input.conversation_id = thread["agent_conversation_id"]
 
-        assistant_parts: list[str] = []
-        activity_log: list[dict[str, str]] = []
-        agent_conversation_id = agent_input.conversation_id
-        async for chunk in self._run_stream(agent_input):
-            if chunk.conversation_id:
-                agent_conversation_id = chunk.conversation_id
-            if chunk.activity:
-                activity_log.append(
-                    {
-                        "text": chunk.activity,
-                        "kind": chunk.activity_kind or "default",
-                    }
-                )
-            if chunk.delta:
-                assistant_parts.append(chunk.delta)
-            yield chunk
-
-        reply_text = "".join(assistant_parts)
-        confidence = compute_confidence(
-            activities=activity_log,
-            reply=reply_text,
-            ok=True,
-            require_analysis=True,
+        self.chat_history.append_message(
+            project.project_id,
+            uid,
+            chat_id,
+            role="user",
+            content=payload.message.strip(),
         )
-        if confidence:
-            yield StreamChunk(confidence=confidence)
 
-        if uid and chat_id:
-            if assistant_parts:
-                self.chat_history.append_message(
-                    project_id,
-                    uid,
-                    chat_id,
-                    role="assistant",
-                    content=reply_text,
-                    agent_conversation_id=agent_conversation_id,
-                    activities=activity_log or None,
-                    confidence=confidence if confidence else None,
-                )
-            elif agent_conversation_id:
-                self.chat_history.set_agent_conversation_id(
-                    project_id, uid, chat_id, agent_conversation_id
-                )
-            if agent_conversation_id:
-                try:
-                    await self.record_chat_token_usage(
-                        project_id=project_id,
-                        uid=uid,
-                        chat_id=chat_id,
-                        agent_conversation_id=agent_conversation_id,
-                    )
-                except httpx.HTTPError as exc:
-                    logger.warning("记录 token 用量失败: %s", exc)
-                except RuntimeError as exc:
-                    logger.warning("记录 token 用量失败: %s", exc)
+        run = await self.chat_runs.start(
+            project=project,
+            uid=uid,
+            chat_id=chat_id,
+            payload=payload,
+            agent_input=agent_input,
+        )
+        try:
+            async for chunk in self.chat_runs.subscribe(run):
+                yield chunk
+        except asyncio.CancelledError:
+            # 客户端断连：仅取消 SSE 订阅，后台 Agent 继续执行并持久化回复。
+            return
 
     async def run_ticket_stream(
         self, payload: TicketInput, *, project: ProjectContext

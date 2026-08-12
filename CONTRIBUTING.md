@@ -1,6 +1,6 @@
 # 贡献指南 / Contributing
 
-感谢考虑为 DeepTicket 贡献！项目处于 **Alpha（0.1.x）**，欢迎文档、Skill 模板、集成示例和小功能改进。
+感谢考虑为 DeepTicket 贡献！项目处于 **Alpha（0.2.x）**，欢迎文档、Skill 模板、集成示例和小功能改进。
 
 Thank you for contributing! DeepTicket is in **alpha**; we welcome docs, Skill templates, integration examples, and focused code changes.
 
