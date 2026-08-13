@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>工作台 · DeepTicket</title>
-  <link rel="stylesheet" href="/static/style.css?v=20" />
+  <link rel="stylesheet" href="/static/style.css?v=21" />
 </head>
 <body>
   <div class="aurora"></div>
@@ -264,11 +264,16 @@
       <div class="composer-zone">
         <form id="chatForm" class="composer">
           <div class="composer-inner">
-            <textarea id="prompt" rows="1" placeholder="描述工单、粘贴日志，或提问…" disabled></textarea>
-            <input id="imageUrls" type="text" class="composer-extra" placeholder="截图 URL（可选，逗号分隔）" disabled />
+            <div id="attachmentStrip" class="attachment-strip hidden" aria-live="polite"></div>
+            <textarea id="prompt" rows="1" placeholder="描述工单、粘贴日志或截图，或提问…" disabled></textarea>
+            <input id="imageFileInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden />
             <div class="composer-bar">
-              <span class="composer-hint"><kbd>Enter</kbd> 换行 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 发送</span>
+              <span class="composer-hint"><kbd>Enter</kbd> 换行 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 发送 · 可直接粘贴截图</span>
               <div class="composer-actions">
+                <button id="attachBtn" type="button" class="btn secondary attach-btn" title="添加截图" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05 12.25 20.24a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                  <span>截图</span>
+                </button>
                 <button id="stopBtn" type="button" class="btn secondary hidden">停止</button>
                 <button id="sendBtn" type="submit" class="btn primary send-btn" title="发送" disabled>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 22-9z"/></svg>
@@ -283,6 +288,6 @@
 
   <div id="toastStack" class="toast-stack"></div>
 
-  <script type="module" src="/static/app.js?v=25"></script>
+  <script type="module" src="/static/app.js?v=27"></script>
 </body>
 </html>

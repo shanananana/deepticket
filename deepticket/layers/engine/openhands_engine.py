@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import asyncio
+import contextlib
 import copy
 import json
 import time
@@ -248,23 +249,28 @@ class OpenHandsEngine:
         agent_settings: dict[str, Any],
         *,
         workspace_dir: str | None = None,
-    ) -> str:
+    ) -> tuple[str, str | None]:
         if agent_input.conversation_id:
             probe = await client.get(
                 f"{self.server}/api/conversations/{agent_input.conversation_id}",
                 headers=self._headers(),
             )
             if probe.status_code == 200:
+                baseline = probe.json().get("leaf_event_id")
                 await self._send_message(
                     client, agent_input.conversation_id, agent_input
                 )
-                return agent_input.conversation_id
-        return await self._start_conversation(
+                return (
+                    agent_input.conversation_id,
+                    str(baseline) if baseline else None,
+                )
+        conversation_id = await self._start_conversation(
             client,
             agent_input,
             agent_settings,
             workspace_dir=workspace_dir,
         )
+        return conversation_id, None
 
     async def _fetch_conversation_error(
         self,
@@ -409,9 +415,13 @@ class OpenHandsEngine:
         client: httpx.AsyncClient,
         conversation_id: str,
         poll_stop: asyncio.Event,
+        *,
+        baseline_leaf_event_id: str | None = None,
     ) -> str:
         observed_running = False
         deadline = time.monotonic() + self._agent_timeout_seconds
+        baseline_leaf = baseline_leaf_event_id
+        new_conversation = baseline_leaf is None
         while not poll_stop.is_set():
             resp = await client.get(
                 f"{self.server}/api/conversations/{conversation_id}",
@@ -421,10 +431,18 @@ class OpenHandsEngine:
                 raise RuntimeError(
                     f"查询对话状态失败: {resp.status_code} {resp.text}"
                 )
-            status = str(resp.json().get("execution_status", "idle")).lower()
+            data = resp.json()
+            status = str(data.get("execution_status", "idle")).lower()
+            leaf_event_id = data.get("leaf_event_id")
+            progressed = (
+                leaf_event_id is not None
+                and baseline_leaf is not None
+                and str(leaf_event_id) != baseline_leaf
+            )
             if status == "running":
                 observed_running = True
-            if status in _TERMINAL_STATUSES and observed_running:
+            turn_done = observed_running or progressed or new_conversation
+            if status in _TERMINAL_STATUSES and turn_done:
                 if status != "finished":
                     detail = await self._fetch_conversation_error(
                         client, conversation_id
@@ -555,11 +573,13 @@ class OpenHandsEngine:
                     agents_md=agent_input.agents_md,
                 )
                 workspace_dir = agent_input.workspace_dir or self.workspace_dir
-                conversation_id = await self._ensure_conversation(
-                    client,
-                    agent_input,
-                    agent_settings,
-                    workspace_dir=workspace_dir,
+                conversation_id, baseline_leaf_event_id = (
+                    await self._ensure_conversation(
+                        client,
+                        agent_input,
+                        agent_settings,
+                        workspace_dir=workspace_dir,
+                    )
                 )
                 self._register_cancel(conversation_id, poll_stop)
                 await out_queue.put(StreamChunk(conversation_id=conversation_id))
@@ -578,7 +598,16 @@ class OpenHandsEngine:
                         reply_state=reply_state,
                     )
                 )
-                await self._wait_for_agent_done(client, conversation_id, poll_stop)
+                await self._wait_for_agent_done(
+                    client,
+                    conversation_id,
+                    poll_stop,
+                    baseline_leaf_event_id=(
+                        str(baseline_leaf_event_id)
+                        if baseline_leaf_event_id
+                        else None
+                    ),
+                )
                 poll_stop.set()
                 if ws_task is not None:
                     try:
@@ -626,5 +655,5 @@ class OpenHandsEngine:
             poll_stop.set()
             if not worker.done():
                 worker.cancel()
-                with asyncio.suppress(asyncio.CancelledError):
+                with contextlib.suppress(asyncio.CancelledError):
                     await worker

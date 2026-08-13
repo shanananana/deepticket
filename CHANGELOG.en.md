@@ -10,6 +10,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.2.2] - 2026-08-14
+
+### Added
+
+- **Workbench screenshot upload**: paste, click, or drop images into the composer; files are stored locally and sent with the chat (no image URL required)
+
+### Fixed
+
+- **Chat stuck on “starting analysis”**: fast-finished agent turns (e.g. model has no vision) were not treated as complete, so the UI spun forever; cancel also crashed on `asyncio.suppress`
+- **Local screenshots unreachable to the agent**: uploaded images are inlined as data URLs so OpenHands does not block `127.0.0.1` as SSRF
+
+---
+
 ## [0.2.1] - 2026-08-12
 
 ### Fixed

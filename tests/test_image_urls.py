@@ -16,9 +16,69 @@ def test_normalize_image_urls_filters_invalid() -> None:
             "ftp://bad.example/x.png",
             "not-a-url",
             "https://example.com/a.png",
+            "/api/uploads/images/" + "a" * 32 + ".png",
+            "http://127.0.0.1:8600/api/uploads/images/" + "b" * 32 + ".jpg",
         ]
     )
-    assert urls == ["https://example.com/a.png"]
+    assert urls == [
+        "https://example.com/a.png",
+        "/api/uploads/images/" + "a" * 32 + ".png",
+        "/api/uploads/images/" + "b" * 32 + ".jpg",
+    ]
+
+
+def test_resolve_image_urls_for_agent() -> None:
+    from deepticket.layers.input.image_urls import resolve_image_urls_for_agent
+
+    relative = "/api/uploads/images/" + "c" * 32 + ".webp"
+    resolved = resolve_image_urls_for_agent(
+        [
+            relative,
+            "https://example.com/external.png",
+            "http://localhost:8600/api/uploads/images/" + "d" * 32 + ".png",
+        ],
+        public_base_url="http://127.0.0.1:8600",
+    )
+    assert resolved == [
+        "http://127.0.0.1:8600/api/uploads/images/" + "c" * 32 + ".webp",
+        "https://example.com/external.png",
+        "http://127.0.0.1:8600/api/uploads/images/" + "d" * 32 + ".png",
+    ]
+
+
+def test_inline_local_upload_images(tmp_path) -> None:
+    from deepticket.layers.input.image_urls import inline_local_upload_images
+
+    png = bytes.fromhex(
+        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+        "0000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082"
+    )
+    filename = "c" * 32 + ".png"
+    (tmp_path / filename).write_bytes(png)
+    inlined = inline_local_upload_images(
+        [
+            f"/api/uploads/images/{filename}",
+            "https://example.com/external.png",
+        ],
+        uploads_dir=tmp_path,
+    )
+    assert inlined[0].startswith("data:image/png;base64,")
+    assert inlined[1] == "https://example.com/external.png"
+
+
+def test_inline_local_upload_images_missing_file(tmp_path) -> None:
+    from deepticket.layers.input.image_urls import inline_local_upload_images
+
+    filename = "d" * 32 + ".jpg"
+    try:
+        inline_local_upload_images(
+            [f"/api/uploads/images/{filename}"],
+            uploads_dir=tmp_path,
+        )
+    except RuntimeError as exc:
+        assert "本地截图不存在" in str(exc)
+    else:
+        raise AssertionError("expected missing upload to fail")
 
 
 def test_ingress_adapter_passes_image_urls() -> None:

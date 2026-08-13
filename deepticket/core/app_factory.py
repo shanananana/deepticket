@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from deepticket.api.deps import AppState
-from deepticket.api.routers import admin, admin_projects, agent, auth, chats, ingress, projects, system
+from deepticket.api.routers import admin, admin_projects, agent, auth, chats, ingress, projects, system, uploads
 from deepticket.core.bootstrap import build_service, load_llm_or_raise, load_runtime_config
 from deepticket.paths import PROJECT_ROOT, WEB_DIR
 
@@ -64,6 +64,7 @@ def create_app() -> FastAPI:
     app.include_router(agent.router)
     app.include_router(ingress.router)
     app.include_router(system.router)
+    app.include_router(uploads.router)
 
     @app.get("/", include_in_schema=False)
     async def login_page() -> FileResponse:

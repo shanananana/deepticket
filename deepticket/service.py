@@ -19,6 +19,7 @@ from deepticket.layers.engine.openhands_engine import OpenHandsEngine
 from deepticket.layers.ingress.pipeline import IngressJobResult, collect_stream_text
 from deepticket.layers.ingress.queue import IngressJobQueue, IngressQueueItem
 from deepticket.layers.input.adapter import InputAdapter
+from deepticket.layers.input.image_urls import inline_local_upload_images
 from deepticket.layers.input.classifier import classify_ingress_event
 from deepticket.layers.input.ingress_adapter import IngressAdapter
 from deepticket.layers.input.ingress_models import IngressEvent
@@ -35,7 +36,7 @@ from deepticket.layers.storage.base import StorageBackend
 from deepticket.layers.storage.chat_history import ChatHistoryStore
 from deepticket.layers.storage.token_usage import TokenUsageStore
 from deepticket.observability.metrics import get_metrics
-from deepticket.paths import resolve_from_project
+from deepticket.paths import PROJECT_ROOT, resolve_from_project
 from deepticket.projects.registry import ProjectContext, ProjectRegistry
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,12 @@ class DeepTicketService:
         self._ingress_queue = IngressJobQueue(workers=config.ingress.queue_workers)
         _metrics.queue_backlog_alert = config.ingress.queue_backlog_alert
         self.chat_runs = ChatRunManager(self)
+
+    def _resolve_agent_image_urls(self, urls: list[str]) -> list[str]:
+        return inline_local_upload_images(
+            urls,
+            uploads_dir=PROJECT_ROOT / "data" / "uploads" / "images",
+        )
 
     @staticmethod
     def _resolve_path(raw: str) -> Path:
@@ -552,12 +559,19 @@ class DeepTicketService:
     ) -> AsyncIterator[StreamChunk]:
         if not uid or not chat_id:
             agent_input = InputAdapter.from_chat(payload)
+            agent_input.image_urls = self._resolve_agent_image_urls(
+                agent_input.image_urls
+            )
             self.apply_project_runtime(agent_input, project)
             async for chunk in self._run_stream(agent_input):
                 yield chunk
             return
 
         agent_input = InputAdapter.from_chat(payload)
+        stored_image_urls = list(agent_input.image_urls)
+        agent_input.image_urls = self._resolve_agent_image_urls(
+            stored_image_urls
+        )
         self.apply_project_runtime(agent_input, project)
 
         thread = self.chat_history.get_thread(project.project_id, uid, chat_id)
@@ -572,6 +586,7 @@ class DeepTicketService:
             chat_id,
             role="user",
             content=payload.message.strip(),
+            image_urls=stored_image_urls or None,
         )
 
         run = await self.chat_runs.start(

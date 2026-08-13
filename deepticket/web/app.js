@@ -106,7 +106,9 @@ const messagesInner = messagesEl.querySelector(".messages-inner");
 const emptyStateEl = $("emptyState");
 const promptEl = $("prompt");
 const chatForm = $("chatForm");
-const imageUrlsEl = $("imageUrls");
+const attachmentStripEl = $("attachmentStrip");
+const imageFileInputEl = $("imageFileInput");
+const attachBtnEl = $("attachBtn");
 const sendBtn = $("sendBtn");
 const stopBtn = $("stopBtn");
 const statusEl = $("status");
@@ -187,6 +189,7 @@ let availableProjects = [];
 let currentProjectId = localStorage.getItem(PROJECT_KEY) || "default";
 let adminProjectYamlDefaults = null;
 let recordMode = localStorage.getItem(RECORD_MODE_KEY) === "1";
+let pendingAttachments = [];
 
 function projectQuery(extra = "") {
   const join = extra.includes("?") ? "&" : "?";
@@ -331,7 +334,7 @@ function setBusy(nextBusy) {
 
 function setComposerEnabled(enabled) {
   promptEl.disabled = !enabled;
-  if (imageUrlsEl) imageUrlsEl.disabled = !enabled;
+  if (attachBtnEl) attachBtnEl.disabled = !enabled;
   sendBtn.disabled = !enabled || busy;
 }
 
@@ -378,9 +381,124 @@ function createMessageRow(role) {
   return { row, body, content };
 }
 
-function addUserMessage(text) {
-  createMessageRow("user").content.textContent = text;
+function displayImageUrl(url) {
+  if (!url) return url;
+  if (url.startsWith("/")) return url;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.pathname.startsWith("/api/uploads/images/")) {
+      return parsed.pathname;
+    }
+  } catch {
+    return url;
+  }
+  return url;
+}
+
+function addUserMessage(text, imageUrls = []) {
+  const { content } = createMessageRow("user");
+  content.textContent = text;
+  if (imageUrls.length) {
+    const gallery = document.createElement("div");
+    gallery.className = "msg-attachments";
+    imageUrls.forEach((url) => {
+      const img = document.createElement("img");
+      img.src = displayImageUrl(url);
+      img.alt = "截图";
+      img.loading = "lazy";
+      gallery.appendChild(img);
+    });
+    content.appendChild(gallery);
+  }
   scrollToBottom();
+}
+
+function renderAttachmentStrip() {
+  if (!attachmentStripEl) return;
+  attachmentStripEl.innerHTML = "";
+  if (!pendingAttachments.length) {
+    attachmentStripEl.classList.add("hidden");
+    return;
+  }
+  attachmentStripEl.classList.remove("hidden");
+  pendingAttachments.forEach((item) => {
+    const chip = document.createElement("div");
+    chip.className = "attachment-chip";
+    const img = document.createElement("img");
+    img.src = item.preview;
+    img.alt = item.name || "截图";
+    const meta = document.createElement("span");
+    meta.className = "attachment-name";
+    meta.textContent = item.name || "截图";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "attachment-remove";
+    remove.title = "移除";
+    remove.textContent = "×";
+    remove.addEventListener("click", () => {
+      pendingAttachments = pendingAttachments.filter((entry) => entry.id !== item.id);
+      renderAttachmentStrip();
+    });
+    chip.append(img, meta, remove);
+    attachmentStripEl.appendChild(chip);
+  });
+}
+
+function clearAttachments() {
+  pendingAttachments = [];
+  renderAttachmentStrip();
+}
+
+async function uploadImageFile(file) {
+  const form = new FormData();
+  form.append("file", file);
+  const resp = await apiFetch("/api/uploads/images", {
+    method: "POST",
+    body: form,
+  });
+  const data = await resp.json();
+  if (!resp.ok) {
+    throw new Error(data.detail || "截图上传失败");
+  }
+  const preview = URL.createObjectURL(file);
+  pendingAttachments.push({
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    url: data.url,
+    preview,
+    name: data.name || file.name || "截图",
+  });
+  renderAttachmentStrip();
+}
+
+async function addImageFiles(files) {
+  const list = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
+  if (!list.length) {
+    toast("请选择图片文件", "info");
+    return;
+  }
+  for (const file of list) {
+    try {
+      await uploadImageFile(file);
+    } catch (err) {
+      toast(err.message || "截图上传失败", "error");
+      break;
+    }
+  }
+}
+
+async function handleComposerPaste(event) {
+  const items = event.clipboardData?.items;
+  if (!items) return;
+  const files = [];
+  for (const item of items) {
+    if (item.kind === "file" && item.type.startsWith("image/")) {
+      const file = item.getAsFile();
+      if (file) files.push(file);
+    }
+  }
+  if (!files.length) return;
+  event.preventDefault();
+  await addImageFiles(files);
 }
 
 function addToolbar(body, rawText) {
@@ -725,7 +843,7 @@ function renderHistory(messages) {
   messagesInner.querySelectorAll(".msg").forEach((el) => el.remove());
   for (const item of messages || []) {
     if (item.role === "user") {
-      addUserMessage(item.content);
+      addUserMessage(item.content, item.image_urls || []);
     } else if (item.role === "assistant") {
       const { body, content } = createAssistantShell(false);
       if (Array.isArray(item.activities) && item.activities.length) {
@@ -748,6 +866,7 @@ function clearChatPanel() {
   updateConversationMeta();
   messagesInner.querySelectorAll(".msg").forEach((el) => el.remove());
   updateEmptyState();
+  clearAttachments();
   setComposerEnabled(false);
   renderChatList();
 }
@@ -1004,13 +1123,17 @@ function parseImageUrls(raw) {
     .filter((item) => /^https?:\/\//i.test(item));
 }
 
+function currentImageUrls() {
+  return pendingAttachments.map((item) => item.url).filter(Boolean);
+}
+
 let userStoppedRun = false;
 
 async function sendMessage(text) {
   const message = text.trim();
   if (!message || busy || !currentChatId) return;
 
-  const imageUrls = imageUrlsEl ? parseImageUrls(imageUrlsEl.value || "") : [];
+  const imageUrls = currentImageUrls();
   let baselineCount = 0;
   try {
     const baselineResp = await apiFetch(projectQuery(`/api/chats/${currentChatId}`));
@@ -1024,7 +1147,7 @@ async function sendMessage(text) {
 
   setBusy(true);
   setStatus("正在思考…", "busy");
-  addUserMessage(message);
+  addUserMessage(message, imageUrls);
 
   const { body, content, thinking } = createAssistantShell(true, { recordMode });
   content.classList.add("placeholder");
@@ -1206,7 +1329,7 @@ async function sendMessage(text) {
     }
 
     setStatus("就绪");
-    if (imageUrlsEl) imageUrlsEl.value = "";
+    clearAttachments();
     await refreshChats();
     if (currentChatId) {
       const titleResp = await apiFetch(projectQuery(`/api/chats/${currentChatId}`));
@@ -1947,6 +2070,43 @@ promptEl.addEventListener("keydown", (e) => {
     e.preventDefault();
     chatForm.requestSubmit();
   }
+});
+
+promptEl.addEventListener("paste", (e) => {
+  handleComposerPaste(e).catch((err) => {
+    toast(err.message || "粘贴截图失败", "error");
+  });
+});
+
+if (attachBtnEl && imageFileInputEl) {
+  attachBtnEl.addEventListener("click", () => {
+    if (attachBtnEl.disabled) return;
+    imageFileInputEl.click();
+  });
+  imageFileInputEl.addEventListener("change", () => {
+    addImageFiles(imageFileInputEl.files).finally(() => {
+      imageFileInputEl.value = "";
+    });
+  });
+}
+
+chatForm.addEventListener("dragover", (e) => {
+  if (!Array.from(e.dataTransfer?.types || []).includes("Files")) return;
+  e.preventDefault();
+  chatForm.classList.add("drag-over");
+});
+
+chatForm.addEventListener("dragleave", () => {
+  chatForm.classList.remove("drag-over");
+});
+
+chatForm.addEventListener("drop", (e) => {
+  if (!Array.from(e.dataTransfer?.types || []).includes("Files")) return;
+  e.preventDefault();
+  chatForm.classList.remove("drag-over");
+  addImageFiles(e.dataTransfer.files).catch((err) => {
+    toast(err.message || "拖入截图失败", "error");
+  });
 });
 
 stopBtn.addEventListener("click", async () => {
