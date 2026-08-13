@@ -152,10 +152,12 @@ Create projects or edit MCP in sidebar **Project settings** (admin), or via `PUT
 ## Architecture
 
 <p align="center">
-  <img src="docs/assets/architecture.svg" alt="DeepTicket architecture" width="720">
+  <a href="docs/assets/architecture.svg">
+    <img src="docs/assets/architecture.png" alt="DeepTicket layered architecture (Chinese diagram)" width="720">
+  </a>
 </p>
 
-<p align="center"><sub>Users and upstream systems only hit <strong>8600</strong>; bind Agent Server <strong>8100</strong> to <code>127.0.0.1</code> in production</sub></p>
+<p align="center"><sub>Click for SVG source · DeepTicket core lives in the orchestration layer · 8600 public / 8100 localhost</sub></p>
 
 ---
 

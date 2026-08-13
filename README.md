@@ -154,10 +154,12 @@ DeepTicket 的定位：**业务组级薄编排层** — 统一 Ingress 进、Web
 ## 架构一览
 
 <p align="center">
-  <img src="docs/assets/architecture.svg" alt="DeepTicket architecture" width="720">
+  <a href="docs/assets/architecture.svg">
+    <img src="docs/assets/architecture.png" alt="DeepTicket 五层架构：输入、编排、引擎、知识、输出" width="720">
+  </a>
 </p>
 
-<p align="center"><sub>用户与上游系统只访问 <strong>8600</strong>；Agent Server <strong>8100</strong> 建议仅绑定 <code>127.0.0.1</code></sub></p>
+<p align="center"><sub>点击图片查看 SVG 矢量源 · 编排层为 DeepTicket 本体 · 8600 对外 / 8100 建议仅本机</sub></p>
 
 ---
 

@@ -8,7 +8,8 @@
 | `logo.svg` | Vector logo (legacy) |
 | `banner.png` | README header banner |
 | `banner.svg` | Vector banner (legacy) |
-| `architecture.svg` | Architecture diagram |
+| `architecture.svg` | Architecture diagram (vector source, five-layer scheme A) |
+| `architecture.png` | README preview image (click-through to SVG) |
 | `demo-flow.svg` | Static demo flow (fallback diagram) |
 | `demo.mp4` | Full demo screen recording (~67s, 1280×682, 15fps) |
 | `demo.gif` | README autoplay preview (720px, links to MP4) |
