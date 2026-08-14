@@ -238,14 +238,16 @@ def check_auth_and_chat_storage() -> CheckResult:
         if resolved is None or resolved.uid != user.uid:
             return CheckResult("auth_chat", False, "登录 token 无法解析")
 
-        thread = chats.create_thread(user.uid, title="verify")
-        chats.append_message(user.uid, thread["chat_id"], role="user", content="ping")
-        doc = chats.get_thread(user.uid, thread["chat_id"])
+        thread = chats.create_thread("default", user.uid, title="verify")
+        chats.append_message(
+            "default", user.uid, thread["chat_id"], role="user", content="ping"
+        )
+        doc = chats.get_thread("default", user.uid, thread["chat_id"])
         if not doc or len(doc["messages"]) != 1:
             return CheckResult("auth_chat", False, "聊天记录写入失败")
 
         other = users.register(f"other_{suffix}", "verify-pass-123")
-        if chats.get_thread(other.uid, thread["chat_id"]) is not None:
+        if chats.get_thread("default", other.uid, thread["chat_id"]) is not None:
             return CheckResult("auth_chat", False, "聊天未按 uid 隔离")
 
         return CheckResult("auth_chat", True, "注册/登录/聊天隔离正常")

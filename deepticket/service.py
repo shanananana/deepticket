@@ -263,7 +263,7 @@ class DeepTicketService:
         if not usage:
             return
 
-        thread = self.chat_history.get_thread(project_id, uid, chat_id)
+        thread = self.chat_history.get_thread_summary(project_id, uid, chat_id)
         if thread is None:
             return
 

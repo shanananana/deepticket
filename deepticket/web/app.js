@@ -1061,17 +1061,33 @@ async function createChat() {
 async function pollChatForReply(chatId, baselineCount, { maxAttempts = 15 } = {}) {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     await new Promise((resolve) => window.setTimeout(resolve, 2000));
-    const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
-    const data = await resp.json();
-    if (!resp.ok) continue;
-    const chat = data.chat || {};
-    const messages = chat.messages || [];
-    if (messages.length > baselineCount) {
+    const statusResp = await apiFetch(projectQuery(`/api/chats/${chatId}/status`));
+    const statusData = await statusResp.json();
+    if (!statusResp.ok) continue;
+    const status = statusData.status || {};
+    const latest = status.latest_message;
+    const messageCount = Number(status.message_count || 0);
+    if (status.agent_run_status === "failed") {
+      const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
+      const data = await resp.json();
+      return { chat: data.chat || {}, message: null };
+    }
+    if (messageCount > baselineCount && latest?.role === "assistant" && latest.content) {
+      const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
+      const data = await resp.json();
+      if (!resp.ok) continue;
+      const chat = data.chat || {};
+      const messages = chat.messages || [];
       const last = messages[messages.length - 1];
       if (last?.role === "assistant" && last.content) return { chat, message: last };
+      return { chat, message: latest };
     }
-    if (chat.agent_run_status === "failed") return { chat, message: null };
-    if (chat.agent_run_status === "idle" && messages.length > baselineCount) {
+    if (status.agent_run_status === "idle" && messageCount > baselineCount) {
+      const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
+      const data = await resp.json();
+      if (!resp.ok) continue;
+      const chat = data.chat || {};
+      const messages = chat.messages || [];
       const last = messages[messages.length - 1];
       if (last?.role === "assistant") return { chat, message: last };
     }

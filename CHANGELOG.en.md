@@ -10,6 +10,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.2.3] - 2026-08-14
+
+### Improved
+
+- Chat storage and polling performance (lighter Redis usage)
+- Less redundant history fetching while waiting for agent replies
+
+---
+
 ## [0.2.2] - 2026-08-14
 
 ### Added
@@ -117,9 +126,11 @@ First public **Alpha** release.
 
 - [中文更新日志](CHANGELOG.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased vs v0.2.1](https://github.com/shanananana/deepticket/compare/v0.2.1...HEAD)
+- [Unreleased vs v0.2.3](https://github.com/shanananana/deepticket/compare/v0.2.3...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/shanananana/deepticket/releases/tag/v0.2.3
+[0.2.2]: https://github.com/shanananana/deepticket/releases/tag/v0.2.2
 [0.2.1]: https://github.com/shanananana/deepticket/releases/tag/v0.2.1
 [0.2.0]: https://github.com/shanananana/deepticket/releases/tag/v0.2.0
 [0.1.2]: https://github.com/shanananana/deepticket/releases/tag/v0.1.2

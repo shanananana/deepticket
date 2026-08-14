@@ -7,7 +7,7 @@ from deepticket.layers.storage.base import StorageBackend
 from deepticket.utils.time import utc_now_iso
 
 _NS_RUNS = "token_usage_runs"
-_NS_THREADS = "chat_threads"
+_NS_CHAT_USAGE = "chat_usage"
 
 
 class TokenUsageStore:
@@ -68,12 +68,11 @@ class TokenUsageStore:
         resolve_username: Callable[[str], str | None],
     ) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
-        for key in self.storage.list_keys(_NS_THREADS):
-            doc = self.storage.get_json(_NS_THREADS, key)
+        for key in self.storage.list_keys(_NS_CHAT_USAGE):
+            doc = self.storage.get_json(_NS_CHAT_USAGE, key)
             if not doc:
                 continue
-            usage = doc.get("token_usage")
-            if not usage:
+            if int(doc.get("total_tokens") or 0) <= 0:
                 continue
             uid = str(doc.get("uid") or "")
             username = resolve_username(uid) or uid[:8]
@@ -82,15 +81,15 @@ class TokenUsageStore:
                     "uid": uid,
                     "username": username,
                     "chat_id": doc.get("chat_id", ""),
-                    "chat_title": doc.get("title") or "新会话",
-                    "agent_conversation_id": doc.get("agent_conversation_id"),
-                    "model": usage.get("model") or "",
-                    "model_label": usage.get("model_label") or usage.get("model") or "",
-                    "prompt_tokens": int(usage.get("prompt_tokens") or 0),
-                    "completion_tokens": int(usage.get("completion_tokens") or 0),
-                    "reasoning_tokens": int(usage.get("reasoning_tokens") or 0),
-                    "total_tokens": int(usage.get("total_tokens") or 0),
-                    "updated_at": usage.get("updated_at"),
+                    "chat_title": doc.get("chat_title") or "新会话",
+                    "agent_conversation_id": doc.get("agent_conversation_id") or None,
+                    "model": doc.get("model") or "",
+                    "model_label": doc.get("model_label") or doc.get("model") or "",
+                    "prompt_tokens": int(doc.get("prompt_tokens") or 0),
+                    "completion_tokens": int(doc.get("completion_tokens") or 0),
+                    "reasoning_tokens": int(doc.get("reasoning_tokens") or 0),
+                    "total_tokens": int(doc.get("total_tokens") or 0),
+                    "updated_at": doc.get("updated_at"),
                 }
             )
         items.sort(key=lambda item: item.get("updated_at") or "", reverse=True)

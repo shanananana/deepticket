@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**A self-hosted SRE Agent orchestration layer for business teams** ([latest v0.2.1](https://github.com/shanananana/deepticket/releases/tag/v0.2.1)) — **does not replace** company-wide AIOps / Copilot platforms. It plugs into your existing **MCP servers, logs, config center, and ITSM** on [OpenHands](https://github.com/OpenHands/OpenHands) with Ingress/Webhook loops so agents triage on **Git source + logs + config** with auditable reasoning, Thinking steps, and **analysis confidence**. **One instance can serve multiple teams/projects**, each with its own knowledge base, MCP, and agents.md.
+**A self-hosted SRE Agent orchestration layer for business teams** ([latest v0.2.3](https://github.com/shanananana/deepticket/releases/tag/v0.2.3)) — **does not replace** company-wide AIOps / Copilot platforms. It plugs into your existing **MCP servers, logs, config center, and ITSM** on [OpenHands](https://github.com/OpenHands/OpenHands) with Ingress/Webhook loops so agents triage on **Git source + logs + config** with auditable reasoning, Thinking steps, and **analysis confidence**. **One instance can serve multiple teams/projects**, each with its own knowledge base, MCP, and agents.md.
 
 Keywords: AIOps · SRE · on-call · enterprise · business team · self-hosted · MCP integration · orchestration · incident triage · root cause analysis · LLM agent · FastAPI
 

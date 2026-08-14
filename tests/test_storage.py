@@ -87,3 +87,47 @@ def test_assistant_activities_and_search_text(store):
     listed = store.list_threads("default", "u1")
     assert "查询日志" in listed[0]["search_text"]
 
+
+def test_message_trim_keeps_latest_200(store):
+    t = store.create_thread("default", "u1", title="trim")
+    for i in range(205):
+        store.append_message(
+            "default", "u1", t["chat_id"], role="user", content=f"m{i}"
+        )
+    doc = store.get_thread("default", "u1", t["chat_id"])
+    assert len(doc["messages"]) == 200
+    assert doc["messages"][0]["content"] == "m5"
+    assert doc["messages"][-1]["content"] == "m204"
+
+
+def test_status_endpoint_fields(store):
+    t = store.create_thread("default", "u1")
+    store.append_message("default", "u1", t["chat_id"], role="user", content="hi")
+    store.set_agent_run_status("default", "u1", t["chat_id"], status="running")
+    status = store.get_status("default", "u1", t["chat_id"])
+    assert status["agent_run_status"] == "running"
+    assert status["message_count"] == 1
+    assert status["latest_message"]["content"] == "hi"
+
+
+def test_token_usage_summary_index(store):
+    from deepticket.layers.storage.token_usage import TokenUsageStore
+
+    t = store.create_thread("default", "u1", title="用量")
+    store.set_token_usage(
+        "default",
+        "u1",
+        t["chat_id"],
+        prompt_tokens=10,
+        completion_tokens=5,
+        reasoning_tokens=0,
+        total_tokens=15,
+        model="m",
+        model_label="M",
+    )
+    usage = TokenUsageStore(store.storage)
+    items = usage.list_conversation_usage(resolve_username=lambda _uid: "u1")
+    assert len(items) == 1
+    assert items[0]["total_tokens"] == 15
+    assert items[0]["chat_title"] == "用量"
+

@@ -74,6 +74,20 @@ async def get_chat(
     return {"chat": _chat_payload(thread)}
 
 
+@router.get("/{chat_id}/status")
+async def get_chat_status(
+    chat_id: str,
+    request: Request,
+    project_id: str = Depends(get_project_id),
+    user: AuthUser = Depends(get_current_user),
+) -> dict:
+    service = get_service(request)
+    status = service.chat_history.get_status(project_id, user.uid, chat_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="聊天不存在")
+    return {"status": status}
+
+
 @router.patch("/{chat_id}")
 async def rename_chat(
     chat_id: str,

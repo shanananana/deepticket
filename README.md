@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**面向业务组内网部署的 SRE Agent 编排层**（[最新 v0.2.1](https://github.com/shanananana/deepticket/releases/tag/v0.2.1)）— **不替换**公司级 AIOps / Copilot 平台，而是接你们已有的 **MCP、日志、配置中心、ITSM**，在 [OpenHands](https://github.com/OpenHands/OpenHands) 之上做 Ingress/Webhook 闭环；**一套服务可接多团队多项目**，每项目独立知识库 / MCP / agents.md，让 Agent 在 **Git 源码 + 日志 + 配置** 三源上可复核排障；工作台含 Thinking 步骤与**分析置信度**。
+**面向业务组内网部署的 SRE Agent 编排层**（[最新 v0.2.3](https://github.com/shanananana/deepticket/releases/tag/v0.2.3)）— **不替换**公司级 AIOps / Copilot 平台，而是接你们已有的 **MCP、日志、配置中心、ITSM**，在 [OpenHands](https://github.com/OpenHands/OpenHands) 之上做 Ingress/Webhook 闭环；**一套服务可接多团队多项目**，每项目独立知识库 / MCP / agents.md，让 Agent 在 **Git 源码 + 日志 + 配置** 三源上可复核排障；工作台含 Thinking 步骤与**分析置信度**。
 
 关键词：AIOps · SRE · on-call · 企业内网 · 业务组 · 自托管 · MCP 集成 · 编排层 · 工单自动化 · 故障根因分析 · LLM Agent · FastAPI
 
