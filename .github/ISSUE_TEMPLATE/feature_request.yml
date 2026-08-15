@@ -1,0 +1,41 @@
+name: 功能建议
+description: 提出新功能或改进建议
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决什么问题？
+      description: 例如：值班场景、集成某系统、降低配置成本
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 你期望的行为或接口形态
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 影响范围
+      options:
+        - 工作台 UI
+        - Docker / 部署
+        - Ingress / Webhook
+        - 多项目 / 配置
+        - Agent / OpenHands 集成
+        - 文档
+        - 其他
+    validations:
+      required: true
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: 参与意愿
+      options:
+        - label: 我愿意提交 PR 实现
+          required: false

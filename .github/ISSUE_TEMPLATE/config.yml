@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 提问 / Questions
+    url: https://github.com/shanananana/deepticket/discussions
+    about: 使用问题、集成讨论（非 Bug 可先来这里）
+  - name: 贡献指南
+    url: https://github.com/shanananana/deepticket/blob/main/CONTRIBUTING.md
+    about: 如何提 PR、跑测试

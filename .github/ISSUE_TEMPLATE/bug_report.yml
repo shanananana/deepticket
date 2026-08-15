@@ -1,0 +1,60 @@
+name: Bug 报告
+description: 报告 DeepTicket 的缺陷或异常行为
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请确认：**勿在 Issue 中粘贴 API Key、Ingress Key 或内网地址。**
+  - type: dropdown
+    id: version
+    attributes:
+      label: 版本
+      options:
+        - v0.3.0
+        - main / 未发版
+        - 其他（请在下方说明）
+    validations:
+      required: true
+  - type: dropdown
+    id: deploy
+    attributes:
+      label: 部署方式
+      options:
+        - Docker（远程镜像）
+        - Docker（本地 build）
+        - 本机脚本 start_all.sh
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 从启动到出问题的最小步骤
+      placeholder: |
+        1. docker compose -f docker-compose.image.yml up -d
+        2. 登录 admin，新建对话
+        3. 发送「…」
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志 / 截图（可选）
+      description: docker compose logs、/api/health、浏览器控制台等
+      render: shell
