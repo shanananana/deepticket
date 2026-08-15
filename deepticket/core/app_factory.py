@@ -9,8 +9,24 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from deepticket.api.deps import AppState
-from deepticket.api.routers import admin, admin_projects, agent, auth, chats, ingress, projects, system, uploads
-from deepticket.core.bootstrap import build_service, load_llm_or_raise, load_runtime_config
+from deepticket.api.routers import (
+    admin,
+    admin_llm,
+    admin_projects,
+    agent,
+    auth,
+    chats,
+    ingress,
+    projects,
+    system,
+    uploads,
+)
+from deepticket.core.bootstrap import (
+    build_service,
+    llm_is_configured,
+    load_llm_config,
+    load_runtime_config,
+)
 from deepticket.paths import PROJECT_ROOT, WEB_DIR
 
 logger = logging.getLogger(__name__)
@@ -26,10 +42,15 @@ def _configure_logging() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     config = load_runtime_config()
-    llm = load_llm_or_raise(config)
+    llm = load_llm_config(config)
     service = build_service(config, llm)
     app.state.deepticket = AppState(service=service, llm=llm)
-    logger.info("DeepTicket 启动中…")
+    if llm_is_configured(llm):
+        logger.info("DeepTicket 启动中…")
+    else:
+        logger.warning(
+            "LLM 未配置：服务已启动，Agent 不可用；管理员可在 Web「LLM 配置」填写"
+        )
     await service.startup()
     await service.start_ingress_workers()
     logger.info("DeepTicket 就绪")
@@ -58,6 +79,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router)
     app.include_router(admin.router)
+    app.include_router(admin_llm.router)
     app.include_router(admin_projects.router)
     app.include_router(projects.router)
     app.include_router(chats.router)

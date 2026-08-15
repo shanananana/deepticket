@@ -100,6 +100,34 @@ class DeepTicketService:
     def _resolve_path(raw: str) -> Path:
         return resolve_from_project(raw)
 
+    def is_llm_configured(self) -> bool:
+        return bool(self.engine.llm_api_key.strip())
+
+    def require_llm_configured(self) -> None:
+        if not self.is_llm_configured():
+            raise RuntimeError(
+                "LLM 未配置：请管理员在工作台侧栏「LLM 配置」填写 API Key"
+            )
+
+    async def apply_llm_config(self, llm: LlmConfig) -> None:
+        self.llm_label = llm.label
+        self.engine.llm_model = llm.model
+        self.engine.llm_api_key = llm.api_key
+        self.engine.llm_base_url = llm.base_url
+        self.config = self.config.model_copy(
+            update={
+                "llm": self.config.llm.model_copy(
+                    update={
+                        "model": llm.model,
+                        "api_key": llm.api_key,
+                        "base_url": llm.base_url,
+                        "label": llm.label,
+                    }
+                )
+            }
+        )
+        await self.engine.register_llm_profile()
+
     async def startup(self) -> None:
         bootstrap_user = self.users.ensure_bootstrap_user(
             self.config.auth.bootstrap_username,
@@ -337,13 +365,15 @@ class DeepTicketService:
         return _metrics.snapshot(queue_pending=self._ingress_queue.qsize())
 
     def get_public_health(self) -> dict[str, object]:
+        configured = self.is_llm_configured()
         return {
             "ok": True,
             "project": "deepticket",
             "version": "0.1.0",
             "auth": True,
             "register_enabled": self.config.auth.register_enabled,
-            "model_label": self.llm_label,
+            "llm_configured": configured,
+            "model_label": self.llm_label if configured else "未配置",
             "storage_backend": self.config.storage.backend,
             "ingress_queue_pending": self._ingress_queue.qsize(),
         }
@@ -394,6 +424,7 @@ class DeepTicketService:
 
     async def submit_ingress_event(self, event: IngressEvent) -> IngressJobResult:
         """校验并入队；立即返回 queued 状态，由后台 worker 执行分析。"""
+        self.require_llm_configured()
         route = classify_ingress_event(event, self.routing)
         ticket = IngressAdapter.to_ticket(event, route)
         job_id = uuid.uuid4().hex
@@ -557,6 +588,7 @@ class DeepTicketService:
         uid: str | None = None,
         chat_id: str | None = None,
     ) -> AsyncIterator[StreamChunk]:
+        self.require_llm_configured()
         if not uid or not chat_id:
             agent_input = InputAdapter.from_chat(payload)
             agent_input.image_urls = self._resolve_agent_image_urls(
@@ -606,6 +638,7 @@ class DeepTicketService:
     async def run_ticket_stream(
         self, payload: TicketInput, *, project: ProjectContext
     ) -> AsyncIterator[StreamChunk]:
+        self.require_llm_configured()
         agent_input = InputAdapter.from_ticket(payload)
         self.apply_project_runtime(agent_input, project)
         self.storage.set_json(

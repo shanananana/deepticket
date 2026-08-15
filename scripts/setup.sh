@@ -41,6 +41,6 @@ if changed:
     path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8")
 PY
 
-echo "安装完成。请编辑 deepticket.yaml 后运行："
+echo "安装完成。可编辑 deepticket.yaml 填写 llm.api_key，或启动后在 Web「LLM 配置」填写："
 echo "  bash scripts/start_all.sh"
 echo "  bash scripts/quickstart_demo.sh   # 5 分钟上手提示"

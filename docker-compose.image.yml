@@ -1,11 +1,11 @@
-# DeepTicket — Docker 一键启动
+# DeepTicket — 使用 GHCR 预构建镜像（无需 clone 源码、无需本地 build）
 #
-# 1. cp .env.docker.example .env   # LLM 可选，也可启动后在 Web 配置
-# 2. docker compose up -d --build
-# 3. 打开 http://127.0.0.1:8600  （admin / admin）
+# 1. curl -LO https://raw.githubusercontent.com/shanananana/deepticket/main/docker-compose.image.yml
+# 2. curl -LO https://raw.githubusercontent.com/shanananana/deepticket/main/.env.docker.example && cp .env.docker.example .env
+# 3. docker compose -f docker-compose.image.yml up -d
+# 4. 打开 http://127.0.0.1:8600 （admin / admin）
 #
-# 可选：挂载本地配置覆盖默认
-#   volumes 里取消 deepticket.yaml 注释，并设置 DEEPTICKET_CONFIG=/app/deepticket.yaml
+# 固定版本示例：把 image 改为 ghcr.io/shanananana/deepticket:v0.2.4
 
 services:
   redis:
@@ -22,10 +22,7 @@ services:
       retries: 10
 
   deepticket:
-    build:
-      context: .
-      args:
-        PIP_INDEX_URL: https://mirrors.aliyun.com/pypi/simple/
+    image: ghcr.io/shanananana/deepticket:latest
     container_name: deepticket
     restart: unless-stopped
     depends_on:
@@ -40,8 +37,6 @@ services:
     volumes:
       - deepticket_data:/app/data
       - deepticket_workspace:/app/workspace
-      # 使用本地 yaml 时取消下一行注释，并改 DEEPTICKET_CONFIG=/app/deepticket.yaml
-      # - ./deepticket.yaml:/app/deepticket.yaml:ro
 
 volumes:
   deepticket_redis_data:

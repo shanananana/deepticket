@@ -14,7 +14,6 @@ router = APIRouter(prefix="/api", tags=["System"])
 @router.get("/health")
 async def health(request: Request) -> dict:
     service = get_service(request)
-    llm = get_llm(request)
     public = service.get_public_health()
     return {
         **public,

@@ -2,9 +2,11 @@
 deepticket.yaml
 deepticket.*.yaml
 !deepticket.example.yaml
+!deepticket.docker.yaml
 
 .env
 .env.*
+!.env.docker.example
 
 # 旧版分散配置目录（本地残留）
 deepticket/knowledge/

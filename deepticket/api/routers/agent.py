@@ -28,6 +28,11 @@ async def chat(
     if thread is None:
         raise HTTPException(status_code=404, detail="聊天不存在")
 
+    try:
+        service.require_llm_configured()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     conversation_id = body.conversation_id or thread.get("agent_conversation_id")
     try:
         chunks = service.run_chat_stream(
@@ -41,9 +46,12 @@ async def chat(
             chat_id=body.chat_id,
         )
     except RuntimeError as exc:
-        if "进行中的 Agent" in str(exc):
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        message = str(exc)
+        if "LLM 未配置" in message:
+            raise HTTPException(status_code=503, detail=message) from exc
+        if "进行中的 Agent" in message:
+            raise HTTPException(status_code=409, detail=message) from exc
+        raise HTTPException(status_code=500, detail=message) from exc
     heartbeat = service.config.web.sse_heartbeat_seconds
     return sse_response(
         chunks,
@@ -60,17 +68,27 @@ async def ticket(
     project: ProjectContext = Depends(get_project_context),
 ):
     service = get_service(request)
-    chunks = service.run_ticket_stream(
-        TicketInput(
-            ticket_id=body.ticket_id,
-            title=body.title,
-            description=body.description,
-            repo_ids=body.repo_ids,
-            logs=body.logs,
-            image_urls=list(body.image_urls),
-        ),
-        project=project,
-    )
+    try:
+        service.require_llm_configured()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    try:
+        chunks = service.run_ticket_stream(
+            TicketInput(
+                ticket_id=body.ticket_id,
+                title=body.title,
+                description=body.description,
+                repo_ids=body.repo_ids,
+                logs=body.logs,
+                image_urls=list(body.image_urls),
+            ),
+            project=project,
+        )
+    except RuntimeError as exc:
+        message = str(exc)
+        if "LLM 未配置" in message:
+            raise HTTPException(status_code=503, detail=message) from exc
+        raise HTTPException(status_code=500, detail=message) from exc
     return sse_response(
         chunks,
         heartbeat_seconds=service.config.web.sse_heartbeat_seconds,

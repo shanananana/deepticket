@@ -136,6 +136,16 @@ const adminBoardBtn = $("adminBoardBtn");
 const adminDashboard = $("adminDashboard");
 const adminProjectPanel = $("adminProjectPanel");
 const adminProjectsBtn = $("adminProjectsBtn");
+const adminLlmBtn = $("adminLlmBtn");
+const adminLlmPanel = $("adminLlmPanel");
+const llmConfigStatus = $("llmConfigStatus");
+const llmConfigPath = $("llmConfigPath");
+const llmApiKeyInput = $("llmApiKeyInput");
+const llmModelInput = $("llmModelInput");
+const llmBaseUrlInput = $("llmBaseUrlInput");
+const llmLabelInput = $("llmLabelInput");
+const saveLlmConfigBtn = $("saveLlmConfigBtn");
+const closeLlmAdminBtn = $("closeLlmAdminBtn");
 const tokenSummary = $("tokenSummary");
 const tokenConversations = $("tokenConversations");
 const tokenRuns = $("tokenRuns");
@@ -178,6 +188,7 @@ const composerZone = document.querySelector(".composer-zone");
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser = null;
 let isAdmin = false;
+let llmConfigured = true;
 let adminViewMode = null;
 let dashboardPollTimer = null;
 let currentChatId = null;
@@ -1148,6 +1159,16 @@ let userStoppedRun = false;
 async function sendMessage(text) {
   const message = text.trim();
   if (!message || busy || !currentChatId) return;
+  if (!llmConfigured) {
+    toast(
+      isAdmin
+        ? "请先在侧栏「LLM 配置」填写 API Key"
+        : "LLM 未配置，请联系管理员",
+      "error",
+    );
+    if (isAdmin) openLlmAdmin();
+    return;
+  }
 
   const imageUrls = currentImageUrls();
   let baselineCount = 0;
@@ -1412,6 +1433,7 @@ async function loadMe() {
   userAvatar.textContent = currentUser.username[0].toUpperCase();
   if (adminBoardBtn) adminBoardBtn.classList.toggle("hidden", !isAdmin);
   if (adminProjectsBtn) adminProjectsBtn.classList.toggle("hidden", !isAdmin);
+  if (adminLlmBtn) adminLlmBtn.classList.toggle("hidden", !isAdmin);
   document.querySelector(".user-role").textContent = isAdmin ? "管理员" : "分析工作台";
   if (syncKnowledgeBtn) syncKnowledgeBtn.classList.toggle("hidden", !isAdmin);
   if (reloadSkillsBtn) reloadSkillsBtn.classList.toggle("hidden", !isAdmin);
@@ -1472,6 +1494,7 @@ async function loadDashboard() {
 function hideAdminPanels() {
   adminDashboard?.classList.add("hidden");
   adminProjectPanel?.classList.add("hidden");
+  adminLlmPanel?.classList.add("hidden");
   if (dashboardPollTimer) {
     window.clearInterval(dashboardPollTimer);
     dashboardPollTimer = null;
@@ -1489,6 +1512,62 @@ function enterAdminChrome(title, subtitle) {
 function updateAdminNavActive() {
   adminBoardBtn?.classList.toggle("active", adminViewMode === "token");
   adminProjectsBtn?.classList.toggle("active", adminViewMode === "projects");
+  adminLlmBtn?.classList.toggle("active", adminViewMode === "llm");
+}
+
+async function loadAdminLlmConfig() {
+  const resp = await apiFetch("/api/admin/llm");
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "加载 LLM 配置失败");
+  if (llmModelInput) llmModelInput.value = data.model || "";
+  if (llmBaseUrlInput) llmBaseUrlInput.value = data.base_url || "";
+  if (llmLabelInput) llmLabelInput.value = data.label || "";
+  if (llmApiKeyInput) llmApiKeyInput.value = "";
+  if (llmConfigPath) llmConfigPath.textContent = data.config_path || "—";
+  if (llmConfigStatus) {
+    llmConfigStatus.textContent = data.configured
+      ? `已配置（${data.api_key_hint || "密钥已保存"}）`
+      : "尚未配置 API Key，保存后即可使用 Agent。";
+  }
+  return data;
+}
+
+async function saveLlmConfig() {
+  const apiKey = llmApiKeyInput?.value?.trim() || "";
+  if (!apiKey) {
+    toast("请填写 API Key", "error");
+    return;
+  }
+  const body = {
+    api_key: apiKey,
+    model: llmModelInput?.value?.trim() || "openai/deepseek-v4-flash",
+    base_url: llmBaseUrlInput?.value?.trim() || "https://api.deepseek.com/v1",
+    label: llmLabelInput?.value?.trim() || "DeepSeek V4 Flash",
+  };
+  const resp = await apiFetch("/api/admin/llm", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "保存 LLM 配置失败");
+  llmConfigured = true;
+  if (llmApiKeyInput) llmApiKeyInput.value = "";
+  if (llmConfigStatus) {
+    llmConfigStatus.textContent = `已配置（${data.api_key_hint || "密钥已保存"}）`;
+  }
+  await loadHealth();
+  toast("LLM 配置已保存", "success");
+}
+
+function openLlmAdmin() {
+  if (!isAdmin) return;
+  adminViewMode = "llm";
+  hideAdminPanels();
+  adminLlmPanel?.classList.remove("hidden");
+  enterAdminChrome("LLM 配置", "管理员 · LLM");
+  updateAdminNavActive();
+  loadAdminLlmConfig().catch((err) => toast(err.message, "error"));
 }
 
 function openProjectAdmin() {
@@ -1826,6 +1905,7 @@ async function loadHealth() {
     const resp = await fetch("/api/health");
     if (!resp.ok) return;
     const data = await resp.json();
+    llmConfigured = data.llm_configured !== false;
     modelLabelEl.textContent = data.model_label || data.model || "—";
     storageLabelEl.textContent = data.storage_backend || "—";
     const reposResp = await apiFetch(projectQuery("/api/knowledge/repos"));
@@ -1903,6 +1983,17 @@ if (adminProjectsBtn) {
   adminProjectsBtn.addEventListener("click", () => {
     openProjectAdmin();
   });
+}
+if (adminLlmBtn) {
+  adminLlmBtn.addEventListener("click", () => openLlmAdmin());
+}
+if (saveLlmConfigBtn) {
+  saveLlmConfigBtn.addEventListener("click", () => {
+    saveLlmConfig().catch((err) => toast(err.message, "error"));
+  });
+}
+if (closeLlmAdminBtn) {
+  closeLlmAdminBtn.addEventListener("click", () => closeAdminView());
 }
 if (createProjectBtn) {
   createProjectBtn.addEventListener("click", () => toggleCreateProjectPanel(true));
@@ -2168,6 +2259,10 @@ document.querySelectorAll(".hint-card").forEach((btn) => {
     await loadHealth();
     await refreshChats();
     clearChatPanel();
+    if (isAdmin && !llmConfigured) {
+      toast("请先配置 LLM API Key", "error");
+      openLlmAdmin();
+    }
   } catch {
     localStorage.removeItem(TOKEN_KEY);
     window.location.replace("/");

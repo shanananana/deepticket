@@ -7,7 +7,7 @@
 llm:
   model: openai/deepseek-v4-flash
   base_url: https://api.deepseek.com/v1
-  api_key: sk-your-llm-api-key-here          # 必填
+  api_key: ""                                # 可留空；启动后在 Web「LLM 配置」填写
   label: DeepSeek V4 Flash
 
 web:

@@ -1,0 +1,17 @@
+.venv
+__pycache__
+*.pyc
+.git
+.github
+.cursor
+.agents
+node_modules
+data
+workspace
+deepticket.yaml
+.env
+*.md
+!README.md
+docs/promotion
+docs/assets/*.mp4
+tests

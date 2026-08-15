@@ -98,7 +98,7 @@ class OpenHandsEngine:
                 async with self._client(timeout=10.0) as client:
                     health = await client.get(f"{self.server}/health")
                     health.raise_for_status()
-                await self._register_profile()
+                await self.register_llm_profile()
                 return
             except (httpx.HTTPError, RuntimeError) as exc:
                 last_error = exc
@@ -108,6 +108,12 @@ class OpenHandsEngine:
         raise RuntimeError(
             f"Agent Server 未就绪 ({self.server}): {last_error}"
         ) from last_error
+
+    async def register_llm_profile(self) -> None:
+        if not self.llm_api_key.strip():
+            logger.warning("跳过 LLM profile 注册：api_key 未配置")
+            return
+        await self._register_profile()
 
     def build_headers(self, *, stream: bool = False) -> dict[str, str]:
         return self._headers(stream=stream)

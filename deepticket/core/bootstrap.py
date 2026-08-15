@@ -38,16 +38,15 @@ def build_service(config: AppConfig, llm: LlmConfig) -> DeepTicketService:
     )
 
 
-def load_llm_or_raise(config: AppConfig | None = None) -> LlmConfig:
+def load_llm_config(config: AppConfig | None = None) -> LlmConfig:
     cfg = config or load_runtime_config()
-    api_key = cfg.llm.api_key.strip()
-    if not api_key:
-        raise RuntimeError(
-            "未找到 LLM 配置：请在 deepticket.yaml 的 llm.api_key 填写密钥"
-        )
     return LlmConfig(
         model=cfg.llm.model,
-        api_key=api_key,
+        api_key=cfg.llm.api_key.strip(),
         base_url=cfg.llm.base_url.strip(),
         label=cfg.llm.label,
     )
+
+
+def llm_is_configured(llm: LlmConfig) -> bool:
+    return bool(llm.api_key.strip())

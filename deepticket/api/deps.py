@@ -8,10 +8,13 @@ from deepticket.config.llm_loader import LlmConfig
 from deepticket.service import DeepTicketService
 
 
-@dataclass(frozen=True)
+@dataclass
 class AppState:
     service: DeepTicketService
     llm: LlmConfig
+
+    def set_llm(self, llm: LlmConfig) -> None:
+        self.llm = llm
 
 
 def get_app_state(request: Request) -> AppState:

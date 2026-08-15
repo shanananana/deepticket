@@ -55,6 +55,10 @@
 
 ## 5 分钟上手
 
+**Docker（免装 Python）：** 见 [docs/docker.md](docs/docker.md) — `cp .env.docker.example .env` → `docker compose up -d --build` → 打开 http://127.0.0.1:8600（LLM 可在 Web 配置）
+
+**本机脚本：**
+
 ```bash
 git clone https://github.com/shanananana/deepticket.git
 cd deepticket

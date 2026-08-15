@@ -1,0 +1,67 @@
+# Docker 默认配置（docker compose 使用）
+# 本地覆盖：挂载 ./deepticket.yaml 并设置 DEEPTICKET_CONFIG=/app/deepticket.yaml
+
+llm:
+  model: openai/deepseek-v4-flash
+  base_url: https://api.deepseek.com/v1
+  api_key: ${LLM_API_KEY}
+  label: DeepSeek V4 Flash
+
+web:
+  host: 0.0.0.0
+  port: 8600
+  cors_origins:
+    - http://127.0.0.1:8600
+    - http://localhost:8600
+  sse_heartbeat_seconds: 15
+
+auth:
+  register_enabled: false
+  bootstrap_username: admin
+  bootstrap_password: admin
+  admin_usernames:
+    - admin
+
+engine:
+  agent_server_host: 127.0.0.1
+  agent_server_port: 8100
+  llm_profile: deepseek-v4-flash
+  session_api_key: ${DEEPTICKET_SESSION_API_KEY}
+  agent_timeout_seconds: 600
+
+storage:
+  backend: redis
+  redis_start_docker: false
+  local:
+    root: ./data
+  redis:
+    url: redis://redis:6379/0
+    username: ""
+    password: ""
+    key_prefix: "deepticket:"
+    ttl_seconds: 31536000
+
+knowledge:
+  git_cache_dir: ./workspace/knowledge
+  workspace_dir: ./workspace/project
+  repos: []
+
+extensions:
+  skills_dir: deepticket/skills
+  user_skills_dir: ""
+  workspace_skills_dir: workspace/project/.openhands/skills
+
+ingress:
+  api_key: ${DEEPTICKET_INGRESS_API_KEY}
+  queue_workers: 1
+  queue_backlog_alert: 10
+  routes:
+    - type: default
+      description: 默认
+      match:
+        default: true
+      outbound:
+        method: store_only
+
+mcp:
+  servers: {}

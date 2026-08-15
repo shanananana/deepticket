@@ -50,6 +50,11 @@ async def ingest_event(
         result = await service.submit_ingress_event(event)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        message = str(exc)
+        if "LLM 未配置" in message:
+            raise HTTPException(status_code=503, detail=message) from exc
+        raise HTTPException(status_code=500, detail=message) from exc
     return IngressJobResponse(**asdict(result))
 
 

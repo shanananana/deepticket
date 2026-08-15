@@ -16,7 +16,7 @@ class LlmSettings(BaseModel):
     )
     api_key: str = Field(
         default="",
-        description="LLM API 密钥；必填。直接写在 deepticket.yaml（已 gitignore）",
+        description="LLM API 密钥；可留空启动，管理员在 Web「LLM 配置」填写",
     )
     base_url: str = Field(
         default="https://api.deepseek.com/v1",

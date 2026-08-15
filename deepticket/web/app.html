@@ -37,6 +37,11 @@
         <span>Token 消耗</span>
       </button>
 
+      <button id="adminLlmBtn" type="button" class="btn secondary full admin-board-btn hidden">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a4 4 0 0 1 4 4v2h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1V6a4 4 0 0 1 4-4Z"/><circle cx="12" cy="14" r="2"/></svg>
+        <span>LLM 配置</span>
+      </button>
+
       <button id="adminProjectsBtn" type="button" class="btn secondary full admin-board-btn hidden">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.5-1.5"/></svg>
         <span>项目配置</span>
@@ -141,6 +146,32 @@
         <section class="dashboard-card token-runs-card">
           <h3>最近 Agent 运行</h3>
           <div id="tokenRuns" class="dashboard-table-wrap"></div>
+        </section>
+      </div>
+
+      <div id="adminLlmPanel" class="admin-dashboard hidden">
+        <div class="dashboard-header">
+          <div>
+            <h2>LLM 配置</h2>
+            <p id="llmConfigHint" class="dashboard-sub">保存后写入 deepticket.yaml 并立即生效，无需重启服务。</p>
+          </div>
+          <div class="dashboard-actions">
+            <button id="closeLlmAdminBtn" type="button" class="btn secondary">返回对话</button>
+          </div>
+        </div>
+        <section class="project-config-block llm-config-block">
+          <div class="project-config-block-head">
+            <h4>模型连接</h4>
+            <button id="saveLlmConfigBtn" type="button" class="btn primary btn-sm">保存并启用</button>
+          </div>
+          <p id="llmConfigStatus" class="project-config-note">加载中…</p>
+          <div class="project-config-fields">
+            <label>API Key <input id="llmApiKeyInput" type="password" class="project-config-input" autocomplete="off" placeholder="sk-..." /></label>
+            <label>模型 ID <input id="llmModelInput" type="text" class="project-config-input" placeholder="openai/deepseek-v4-flash" /></label>
+            <label>Base URL <input id="llmBaseUrlInput" type="text" class="project-config-input" placeholder="https://api.deepseek.com/v1" /></label>
+            <label>展示名称 <input id="llmLabelInput" type="text" class="project-config-input" placeholder="DeepSeek V4 Flash" /></label>
+          </div>
+          <p class="project-config-note">配置文件路径：<code id="llmConfigPath">—</code></p>
         </section>
       </div>
 
