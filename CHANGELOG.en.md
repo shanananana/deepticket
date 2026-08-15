@@ -10,6 +10,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.3.0] - 2026-08-15
+
+### Added
+
+- **Docker one-command start**: `Dockerfile`, `docker-compose.yml`, `deepticket.docker.yaml`; Web (8600) + Agent Server + Redis via Compose
+- **Web LLM settings**: start without an API key; admins configure in the sidebar, persisted to yaml with hot reload
+- **GHCR publish**: CI builds and pushes `ghcr.io/shanananana/deepticket` on `v*` tags; `docker-compose.image.yml` for prebuilt images
+- **Docs**: [docs/docker.md](docs/docker.md)
+
+### Changed
+
+- Docker / local start no longer requires `llm.api_key` upfront
+
+---
+
 ## [0.2.3] - 2026-08-14
 
 ### Improved
@@ -126,9 +141,10 @@ First public **Alpha** release.
 
 - [中文更新日志](CHANGELOG.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased vs v0.2.3](https://github.com/shanananana/deepticket/compare/v0.2.3...HEAD)
+- [Unreleased vs v0.3.0](https://github.com/shanananana/deepticket/compare/v0.3.0...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/shanananana/deepticket/releases/tag/v0.3.0
 [0.2.3]: https://github.com/shanananana/deepticket/releases/tag/v0.2.3
 [0.2.2]: https://github.com/shanananana/deepticket/releases/tag/v0.2.2
 [0.2.1]: https://github.com/shanananana/deepticket/releases/tag/v0.2.1

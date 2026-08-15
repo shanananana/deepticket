@@ -10,6 +10,21 @@
 
 ---
 
+## [0.3.0] - 2026-08-15
+
+### Added
+
+- **Docker 一键启动**：`Dockerfile`、`docker-compose.yml`、`deepticket.docker.yaml`；单容器内 Web（8600）+ Agent Server + Compose Redis
+- **Web LLM 配置**：无 API Key 可启动；管理员侧栏填写后写入 yaml 并热更新，无需重启
+- **GHCR 发布**：打 `v*` tag 时 CI 自动 build/push `ghcr.io/shanananana/deepticket`；`docker-compose.image.yml` 支持拉预构建镜像
+- **文档**： [docs/docker.md](docs/docker.md)
+
+### Changed
+
+- Docker / 本机启动不再强制预先配置 `llm.api_key`
+
+---
+
 ## [0.2.3] - 2026-08-14
 
 ### 优化
@@ -126,9 +141,10 @@
 
 - [English Changelog](CHANGELOG.en.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased 对比 v0.2.3](https://github.com/shanananana/deepticket/compare/v0.2.3...HEAD)
+- [Unreleased 对比 v0.3.0](https://github.com/shanananana/deepticket/compare/v0.3.0...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/shanananana/deepticket/releases/tag/v0.3.0
 [0.2.3]: https://github.com/shanananana/deepticket/releases/tag/v0.2.3
 [0.2.2]: https://github.com/shanananana/deepticket/releases/tag/v0.2.2
 [0.2.1]: https://github.com/shanananana/deepticket/releases/tag/v0.2.1

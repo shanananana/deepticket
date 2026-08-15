@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**A self-hosted SRE Agent orchestration layer for business teams** ([latest v0.2.3](https://github.com/shanananana/deepticket/releases/tag/v0.2.3)) — **does not replace** company-wide AIOps / Copilot platforms. It plugs into your existing **MCP servers, logs, config center, and ITSM** on [OpenHands](https://github.com/OpenHands/OpenHands) with Ingress/Webhook loops so agents triage on **Git source + logs + config** with auditable reasoning, Thinking steps, and **analysis confidence**. **One instance can serve multiple teams/projects**, each with its own knowledge base, MCP, and agents.md.
+**A self-hosted SRE Agent orchestration layer for business teams** ([latest v0.3.0](https://github.com/shanananana/deepticket/releases/tag/v0.3.0)) — **does not replace** company-wide AIOps / Copilot platforms. It plugs into your existing **MCP servers, logs, config center, and ITSM** on [OpenHands](https://github.com/OpenHands/OpenHands) with Ingress/Webhook loops so agents triage on **Git source + logs + config** with auditable reasoning, Thinking steps, and **analysis confidence**. **One instance can serve multiple teams/projects**, each with its own knowledge base, MCP, and agents.md.
 
 Keywords: AIOps · SRE · on-call · enterprise · business team · self-hosted · MCP integration · orchestration · incident triage · root cause analysis · LLM agent · FastAPI
 
@@ -29,9 +29,12 @@ Keywords: AIOps · SRE · on-call · enterprise · business team · self-hosted 
 - **MCP / Skill extensions** — Mount internal MCP (logs, config, CMDB…) that platform agents rarely expose at this granularity
 - **Ingress / Outbound** — Alerts and tickets in; analysis back via Webhook
 - **Workbench** — Multi-turn chat, Thinking steps, confidence; SSE heartbeat for proxies
+- **Docker one-command start** — `docker compose up` for Web + Agent + Redis; LLM optional in Web **LLM settings**
 - **Example** — Vertical agent: [ad_agent](https://github.com/shanananana/ad_agent); DeepTicket **wires infra + runs the SRE pipeline**
 
 <p align="center">
+  <a href="docs/docker.md"><strong>Docker quick start</strong></a>
+  ·
   <a href="docs/quickstart-demo.md"><strong>5-minute quick start</strong></a>
   ·
   <a href="docs/DEMO_PROMPT.md">Sample prompts</a>
@@ -53,7 +56,27 @@ Keywords: AIOps · SRE · on-call · enterprise · business team · self-hosted 
 
 ---
 
-## 5-minute quick start
+## Docker quick start (recommended)
+
+No local Python / venv. One Compose stack runs **Web (8600)**, **OpenHands Agent Server**, and **Redis**.
+
+```bash
+git clone https://github.com/shanananana/deepticket.git
+cd deepticket
+
+cp .env.docker.example .env
+# Optional: set LLM_API_KEY=sk-... in .env
+
+docker compose up -d --build
+```
+
+Open **http://127.0.0.1:8600** — default `admin` / `admin`. Without an LLM key, sign in as admin and use sidebar **LLM settings**. See [docs/docker.md](docs/docker.md) for prebuilt GHCR images (`docker-compose.image.yml`).
+
+---
+
+## 5-minute quick start (local scripts)
+
+For development, use local scripts instead of Docker:
 
 ```bash
 git clone https://github.com/shanananana/deepticket.git

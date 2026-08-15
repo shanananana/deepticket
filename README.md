@@ -17,10 +17,11 @@
   <img src="https://img.shields.io/github/v/release/shanananana/deepticket?label=release" alt="Latest release">
   <img src="https://img.shields.io/badge/OpenHands-1.39.1-purple" alt="OpenHands 1.39.1">
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="Alpha">
+  <img src="https://img.shields.io/badge/docker-compose-8600-2496ED" alt="Docker">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
 </p>
 
-**面向业务组内网部署的 SRE Agent 编排层**（[最新 v0.2.3](https://github.com/shanananana/deepticket/releases/tag/v0.2.3)）— **不替换**公司级 AIOps / Copilot 平台，而是接你们已有的 **MCP、日志、配置中心、ITSM**，在 [OpenHands](https://github.com/OpenHands/OpenHands) 之上做 Ingress/Webhook 闭环；**一套服务可接多团队多项目**，每项目独立知识库 / MCP / agents.md，让 Agent 在 **Git 源码 + 日志 + 配置** 三源上可复核排障；工作台含 Thinking 步骤与**分析置信度**。
+**面向业务组内网部署的 SRE Agent 编排层**（[最新 v0.3.0](https://github.com/shanananana/deepticket/releases/tag/v0.3.0)）— **不替换**公司级 AIOps / Copilot 平台，而是接你们已有的 **MCP、日志、配置中心、ITSM**，在 [OpenHands](https://github.com/OpenHands/OpenHands) 之上做 Ingress/Webhook 闭环；**一套服务可接多团队多项目**，每项目独立知识库 / MCP / agents.md，让 Agent 在 **Git 源码 + 日志 + 配置** 三源上可复核排障；工作台含 Thinking 步骤与**分析置信度**。
 
 关键词：AIOps · SRE · on-call · 企业内网 · 业务组 · 自托管 · MCP 集成 · 编排层 · 工单自动化 · 故障根因分析 · LLM Agent · FastAPI
 
@@ -29,9 +30,12 @@
 - **MCP / Skill 扩展** — 大厂常见内网 MCP（日志、配置、CMDB…）直接挂载；平台级 Agent 很少做到这个粒度
 - **Ingress / Outbound** — 告警 / 工单 HTTP 进，分析结论 Webhook 回写
 - **Workbench** — 多轮追问、Thinking 步骤、分析置信度；SSE 心跳适配网关
+- **Docker 一键启动** — `docker compose up` 拉起 Web + Agent + Redis，免装 Python；LLM 可在 Web **LLM 配置**填写
 - **示例** — 垂类 Agent 见 [ad_agent](https://github.com/shanananana/ad_agent)；DeepTicket 负责**接基建 + 跑排障流水线**
 
 <p align="center">
+  <a href="docs/docker.md"><strong>Docker 一键启动</strong></a>
+  ·
   <a href="docs/quickstart-demo.md"><strong>5 分钟上手</strong></a>
   ·
   <a href="docs/DEMO_PROMPT.md">示例提问</a>
@@ -53,11 +57,31 @@
 
 ---
 
-## 5 分钟上手
+## Docker 一键启动（推荐）
 
-**Docker（免装 Python）：** 见 [docs/docker.md](docs/docker.md) — `cp .env.docker.example .env` → `docker compose up -d --build` → 打开 http://127.0.0.1:8600（LLM 可在 Web 配置）
+无需本机 Python / venv。容器内同时运行 **Web（8600）**、**OpenHands Agent Server** 与 **Redis**。
 
-**本机脚本：**
+```bash
+git clone https://github.com/shanananana/deepticket.git
+cd deepticket
+
+cp .env.docker.example .env
+# 可选：编辑 .env 填写 LLM_API_KEY=sk-...
+
+docker compose up -d --build
+```
+
+浏览器打开 **http://127.0.0.1:8600**，默认 `admin` / `admin`。
+
+- **未填 LLM Key** 也能启动；管理员登录后进入侧栏 **LLM 配置** 保存即可用 Agent
+- 发布版可用预构建镜像（无需 `--build`）：见 [docs/docker.md](docs/docker.md) 方式 B · `docker-compose.image.yml`
+- 常用：`docker compose logs -f deepticket` · `docker compose down`
+
+---
+
+## 5 分钟上手（本机脚本）
+
+**Docker 用户请直接用上一节。** 开发调试推荐本机脚本：
 
 ```bash
 git clone https://github.com/shanananana/deepticket.git
@@ -169,11 +193,13 @@ DeepTicket 的定位：**业务组级薄编排层** — 统一 Ingress 进、Web
 
 ## 快速开始
 
-详见上方 [5 分钟上手](#5-分钟上手)。常用命令：
+详见 [Docker 一键启动](#docker-一键启动推荐) 或 [5 分钟上手](#5-分钟上手本机脚本)。常用命令：
 
 | 常用命令 | 说明 |
 |----------|------|
-| `bash scripts/start_all.sh` | 日常启动 |
+| `docker compose up -d --build` | Docker 启动（推荐） |
+| `docker compose -f docker-compose.image.yml up -d` | 拉 GHCR 预构建镜像 |
+| `bash scripts/start_all.sh` | 本机脚本启动 |
 | `bash scripts/quickstart_demo.sh` | 上手提示 / 可选 ROI log 预生成 |
 | `bash scripts/status.sh` | 检查服务与队列 |
 | `bash scripts/verify.sh` | 离线/在线自检 |
@@ -188,7 +214,7 @@ DeepTicket 的定位：**业务组级薄编排层** — 统一 Ingress 进、Web
 
 | 区块 | 作用 |
 |------|------|
-| `llm` | 模型与 API Key |
+| `llm` | 模型与 API Key（也可启动后在 Web **LLM 配置**填写） |
 | `knowledge.repos` | 默认 Git 仓库（代码分析；多项目可在后台按项目覆盖） |
 | `ingress` | 外部工单/告警接入与 Webhook 回写 |
 | `storage` | 本地或 **Redis**（多项目配置、聊天历史、权限建议用 Redis） |
@@ -246,6 +272,11 @@ bash scripts/verify.sh --online
 <details>
 <summary><strong>如何接入多个团队 / 多个项目？</strong></summary>
 <p>启用 Redis 存储后，在侧栏打开 <strong>项目配置</strong>（管理员，位于 Token 消耗下方）新建项目，分别为各项目配置 Git 仓库、MCP 与 agents.md。用户登录后在侧栏切换项目即可；对话与知识库按项目隔离。yaml 里的 <code>knowledge</code> / <code>mcp</code> 仅作默认兜底，后台保存的内容写入 Redis 优先生效。</p>
+</details>
+
+<details>
+<summary><strong>如何用 Docker 部署？需要提前准备 LLM Key 吗？</strong></summary>
+<p>见 <a href="docs/docker.md">docs/docker.md</a>：<code>cp .env.docker.example .env</code> → <code>docker compose up -d --build</code>。LLM Key 可写入 <code>.env</code>，也可启动后由管理员在侧栏 <strong>LLM 配置</strong> 填写并立即生效。对外分发可用 <code>docker-compose.image.yml</code> 拉 <code>ghcr.io/shanananana/deepticket</code> 预构建镜像。</p>
 </details>
 
 <details>
