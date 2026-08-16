@@ -178,25 +178,9 @@ bash scripts/start_all.sh
 
 ## Architecture
 
-```mermaid
-graph LR
-  User["User / ticket system"]
-  Web["DeepTicket Web<br/>workbench · multi-project"]
-  OH["OpenHands Agent"]
-  WS["Git workspace"]
-  MCP["MCP / Skills"]
-  Ingress["Ingress alerts"]
-
-  User --> Web
-  Ingress --> Web
-  Web --> OH
-  OH --> WS
-  OH --> MCP
-```
-
-<p><strong>Flow:</strong> question or ticket in → agent searches workspace → MCP/Skills for logs &amp; config → reply with evidence or Webhook write-back.</p>
-
-<p>Diagram: <a href="docs/assets/architecture.svg">architecture.svg</a></p>
+<p align="center">
+  <a href="docs/assets/architecture.svg"><img src="docs/assets/architecture.png" width="640" alt="Five-layer architecture"></a>
+</p>
 
 ---
 

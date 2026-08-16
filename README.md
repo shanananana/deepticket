@@ -176,27 +176,11 @@ bash scripts/start_all.sh
 
 ---
 
-## 架构概览
+## 架构
 
-```mermaid
-graph LR
-  User["用户 / 工单系统"]
-  Web["DeepTicket Web<br/>工作台 · 多项目"]
-  OH["OpenHands Agent"]
-  WS["Git 工作区"]
-  MCP["MCP / Skills"]
-  Ingress["Ingress 告警"]
-
-  User --> Web
-  Ingress --> Web
-  Web --> OH
-  OH --> WS
-  OH --> MCP
-```
-
-<p><strong>流程</strong>：用户提问或工单进入 → 调度 Agent 在 workspace 检索 → 调 MCP/Skill 查日志配置 → 带证据回复或 Webhook 写回。</p>
-
-<p>详图：<a href="docs/assets/architecture.svg">architecture.svg</a></p>
+<p align="center">
+  <a href="docs/assets/architecture.svg"><img src="docs/assets/architecture.png" width="640" alt="五层架构"></a>
+</p>
 
 ---
 
