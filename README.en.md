@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner-header.png" width="100%" alt="DeepTicket">
+  <img src="docs/assets/banner-header.png" width="100%" alt="DeepTicket brand banner">
 </p>
 
 <p align="center">
