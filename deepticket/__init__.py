@@ -2,4 +2,6 @@
 
 from deepticket.config.loader import load_app_config
 
-__all__ = ["load_app_config"]
+__version__ = "0.3.1"
+
+__all__ = ["load_app_config", "__version__"]

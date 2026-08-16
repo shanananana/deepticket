@@ -5,7 +5,7 @@
 # 3. docker compose -f docker-compose.image.yml up -d
 # 4. 打开 http://127.0.0.1:8600 （admin / admin）
 #
-# 固定版本示例：把 image 改为 ghcr.io/shanananana/deepticket:v0.3.0
+# 固定版本示例：ghcr.io/shanananana/deepticket:v0.3.1
 
 services:
   redis:
@@ -22,7 +22,7 @@ services:
       retries: 10
 
   deepticket:
-    image: ghcr.io/shanananana/deepticket:latest
+    image: ghcr.io/shanananana/deepticket:v0.3.1
     container_name: deepticket
     restart: unless-stopped
     depends_on:

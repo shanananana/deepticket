@@ -28,6 +28,7 @@ from deepticket.core.bootstrap import (
     load_runtime_config,
 )
 from deepticket.paths import PROJECT_ROOT, WEB_DIR
+from deepticket import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="DeepTicket",
         description="Agent 工单分析平台 — 输入/输出/引擎/知识/存储 五层架构",
-        version="0.1.0",
+        version=__version__,
         lifespan=lifespan,
     )
     app.add_middleware(

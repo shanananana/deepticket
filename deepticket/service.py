@@ -11,6 +11,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from deepticket.auth.user_store import AuthUser, UserStore
+from deepticket import __version__
 from deepticket.chat_runs import ChatRunManager
 from deepticket.config.mcp_loader import filter_enabled_servers, validate_mcp_servers
 from deepticket.config.routing_schema import RoutingConfig
@@ -369,7 +370,7 @@ class DeepTicketService:
         return {
             "ok": True,
             "project": "deepticket",
-            "version": "0.1.0",
+            "version": __version__,
             "auth": True,
             "register_enabled": self.config.auth.register_enabled,
             "llm_configured": configured,

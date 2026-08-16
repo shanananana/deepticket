@@ -13,6 +13,7 @@ body:
     attributes:
       label: 版本
       options:
+        - v0.3.1
         - v0.3.0
         - main / 未发版
         - 其他（请在下方说明）

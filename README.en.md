@@ -19,21 +19,106 @@
   <img src="https://img.shields.io/badge/docker-GHCR-2496ED" alt="Docker">
 </p>
 
-<h3 align="center">Self-hosted SRE Agent orchestration for business teams</h3>
+<h3 align="center">Self-hosted Agent orchestration for business teams</h3>
 
-<p align="center">A thin layer on OpenHands: logs, config, MCP, tickets, alerts. Not a replacement for company Copilot.</p>
+<p align="center"><strong>Let frontline staff find evidence before escalating to engineering</strong></p>
+
+<p align="center">Runs on OpenHands · Git / logs / config / MCP · tickets &amp; alerts · not a company Copilot replacement</p>
 
 <p align="center">
+  <a href="#overview"><strong>Overview</strong></a>
+  ·
+  <a href="#features"><strong>Features</strong></a>
+  ·
   <a href="#use-cases"><strong>Use cases</strong></a>
   ·
   <a href="#quick-start"><strong>Quick start</strong></a>
   ·
-  <a href="docs/docker.md">Docker docs</a>
-  ·
-  <a href="docs/DEMO_PROMPT.md">Sample prompts</a>
-  ·
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="#docs"><strong>Docs</strong></a>
 </p>
+
+---
+
+## Overview
+
+DeepTicket is a **team-owned Agent orchestration layer**: Git knowledge, internal logs and config, MCP tools, and ticket/alert hooks in one workbench, with multi-turn investigation on OpenHands.
+
+The goal is not “chat more”—it is **evidence before close or escalate**: source paths, log lines, config keys—not just retrieved doc chunks. Engineering keeps Copilot; business teams usually pilot with Docker on their own infra.
+
+---
+
+## Features
+
+<h3>Connect</h3>
+
+<ul>
+<li><strong>Multi-project</strong> — sidebar switch; per-project repos, MCP, agents.md</li>
+<li><strong>Ingress</strong> — tickets/alerts over HTTP, async analysis in the background</li>
+<li><strong>Per-project MCP</strong> — config lookup, release history, internal docs—scoped per team</li>
+</ul>
+
+<h3>Investigate</h3>
+
+<ul>
+<li><strong>Git sync</strong> — code in workspace; the agent can read source</li>
+<li><strong>Logs / config</strong> — Skill templates or MCP wired to your platforms</li>
+<li><strong>Evidence in replies</strong> — paths, snippets, keys; agents.md enforces read-only and cite-first</li>
+</ul>
+
+<h3>Deliver</h3>
+
+<ul>
+<li><strong>Webhook write-back</strong> — conclusions to ticket/ITSM; target is per-project</li>
+<li><strong>Human in the loop</strong> — close if it checks out; escalate with context if not</li>
+<li><strong>yaml + sidebar</strong> — versioned config or runtime edits</li>
+</ul>
+
+---
+
+## Highlight
+
+<h3>Evidence first, not empty chat</h3>
+
+<p>DeepTicket pushes the agent to search the workspace before concluding—not generic advice. Project <code>agents.md</code> sets read-only rules, paths, and “say when unsure.”</p>
+
+<blockquote>
+<p>Frontline needs “can I close this?” Engineering needs “escalation with context.” DeepTicket sits in between.</p>
+</blockquote>
+
+---
+
+## vs pure RAG / company Copilot
+
+<p>Pick your category: ingested Q&amp;A, company-wide Copilot, or a team-owned layer that hooks internal systems and writes back to tickets.</p>
+
+| | Pure RAG | Platform Copilot | DeepTicket |
+|--|:--:|:--:|:--:|
+| Read Git source | Chunks | Limited | ✅ |
+| Internal logs / config | Ingest | Coarse | ✅ MCP / Skills |
+| Ticket / alert write-back | ❌ | Weak | ✅ Ingress |
+| Team self-host | Varies | Wait on platform | ✅ Docker / yaml |
+
+<p><strong>vs OpenHands:</strong> OpenHands runs the agent engine; DeepTicket is the workbench, Git sync, and ticket ingress.</p>
+
+---
+
+## Use cases
+
+<h3>Product, ops, QA</h3>
+
+<p>Wire logs and config, add a few MCP tools, give accounts to non-engineers. Typical questions: bug or not? matches spec? prod vs doc?</p>
+
+<p>Replies cite log lines, config keys, and code paths—close yourself or ping engineering with context.</p>
+
+<h3>Reports and metrics</h3>
+
+<p>With a reporting/BI MCP, ask cross-sheet questions (e.g. campaign ROI vs daily report). Let the machine run joins first; you decide what to trust.</p>
+
+<p>Vertical example: <a href="https://github.com/shanananana/ad_agent">ad_agent</a> (ad ROI). DeepTicket is the wiring and multi-project shell.</p>
+
+<h3>Tickets and alerts</h3>
+
+<p>HTTP from your ticket or alert system, async analysis, conclusion out via Webhook. On-call reads the draft, then escalates or not.</p>
 
 ---
 
@@ -91,63 +176,52 @@ bash scripts/start_all.sh
 
 ---
 
-## What it is
+## Architecture
 
-DeepTicket sits on OpenHands: Git sync for knowledge, a chat workbench, per-project MCP and Ingress. Answers pull from source, logs, and config—not just retrieved doc chunks.
+```mermaid
+graph LR
+  User["User / ticket system"]
+  Web["DeepTicket Web<br/>workbench · multi-project"]
+  OH["OpenHands Agent"]
+  WS["Git workspace"]
+  MCP["MCP / Skills"]
+  Ingress["Ingress alerts"]
 
-Meant for a business team to run themselves (often Docker on a small pilot). Coexists with company-wide Copilot.
+  User --> Web
+  Ingress --> Web
+  Web --> OH
+  OH --> WS
+  OH --> MCP
+```
 
----
+<p><strong>Flow:</strong> question or ticket in → agent searches workspace → MCP/Skills for logs &amp; config → reply with evidence or Webhook write-back.</p>
 
-## Use cases
-
-<h3>Product, ops, QA</h3>
-
-<p>Hook up logs and config, add a few MCP tools (config lookup, release history, internal docs), and give accounts to non-engineers. Typical questions: bug or not? matches the spec? prod vs doc mismatch?</p>
-
-<p>Replies cite log lines, config keys, and code paths. Close it yourself if it checks out; ping engineering with context if not—fewer screenshot ping-pongs.</p>
-
-<h3>Reports and metrics</h3>
-
-<p>With a reporting/BI MCP, ask cross-sheet questions—campaign ROI vs daily report, which channel dropped. Humans spend hours aligning definitions; let the machine run the joins first, then you decide what to trust.</p>
-
-<p>Vertical example: <a href="https://github.com/shanananana/ad_agent">ad_agent</a> (ad ROI). DeepTicket is the wiring and multi-project shell.</p>
-
-<h3>Tickets and alerts</h3>
-
-<p>HTTP from your ticket or alert system, async analysis in the background, conclusion out via Webhook (target is configurable). On-call reads the draft, then escalates or not.</p>
-
-<details>
-<summary>vs pure RAG / company Copilot</summary>
-
-| | Pure RAG | Platform Copilot | DeepTicket |
-|--|:--:|:--:|:--:|
-| Read Git source | Chunks | Limited | ✅ |
-| Internal logs / config | Ingest | Coarse | ✅ MCP / Skills |
-| Ticket / alert write-back | ❌ | Weak | ✅ Ingress |
-| Team self-host | Varies | Wait on platform | ✅ Docker / yaml |
-
-<p><a href="docs/assets/architecture.svg">Architecture diagram</a></p>
-
-</details>
+<p>Diagram: <a href="docs/assets/architecture.svg">architecture.svg</a></p>
 
 ---
 
 ## Docs
 
-<p><a href="docs/docker.md">Docker</a> · <a href="docs/DEMO_PROMPT.md">Sample prompts</a> · <a href="docs/quickstart-demo.md">Demo recording</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
+| Doc | Description |
+|-----|-------------|
+| [docs/docker.md](docs/docker.md) | Docker deploy, GHCR image, persisted config |
+| [docs/DEMO_PROMPT.md](docs/DEMO_PROMPT.md) | Copy-paste sample prompts (Nginx logs, etc.) |
+| [docs/quickstart-demo.md](docs/quickstart-demo.md) | Recorded demo and ROI walkthrough |
+| [deepticket.example.yaml](deepticket.example.yaml) | Config template (copy to deepticket.yaml) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Local dev, tests, contributing |
+| [CHANGELOG.en.md](CHANGELOG.en.md) | Release notes |
 
-<p>Copy <code>deepticket.example.yaml</code> to configure; multi-project, MCP, Ingress in the sidebar or yaml. Admin API: <code>/api/admin/projects/{id}</code></p>
+<p>Multi-project, MCP, Ingress, and agents.md: sidebar in the workbench or admin API <code>/api/admin/projects/{id}</code></p>
 
 ---
 
 ## FAQ
 
-<p><strong>vs OpenHands?</strong> OpenHands runs the agent; DeepTicket is the workbench, Git sync, and ticket hook.</p>
+<p><strong>Minimum setup?</strong> LLM key; Git repos optional; log/config MCP when needed.</p>
 
 <p><strong>vs company Copilot?</strong> Coexists—usually a small team-owned deploy.</p>
 
-<p><strong>Minimum setup?</strong> LLM key; Git repos optional; log/config MCP when needed.</p>
+<p><strong>Stage?</strong> Alpha (v0.3.1)—Stars and Issues welcome.</p>
 
 <p>Local dev: <code>pip install -e ".[dev]"</code> · <code>pytest -q</code> · <code>bash scripts/verify.sh --online</code></p>
 

@@ -21,7 +21,7 @@
 
 - **Docker LLM 配置持久化**：`DEEPTICKET_CONFIG` 指向 data 卷内 `deepticket.yaml`（`docker-compose.yml` / `docker-compose.image.yml`）
 - **公开 Git 仓库**：无 token 时可匿名 clone（`git_source.py`）
-- README 结构微调；`docs/assets` logo/banner 更新
+- README 介绍结构重写（简介 / 特性 / 亮点 / 对比表 / 文档索引）
 
 ---
 

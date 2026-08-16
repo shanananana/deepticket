@@ -21,7 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **Docker LLM config persistence**: `DEEPTICKET_CONFIG` points to `deepticket.yaml` on the data volume (`docker-compose.yml` / `docker-compose.image.yml`)
 - **Public Git repos**: anonymous clone when no token is set (`git_source.py`)
-- README structure tweaks; updated `docs/assets` logo/banner
+- README intro restructure (overview / features / highlight / comparison / doc index)
 
 ---
 

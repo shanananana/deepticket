@@ -4,7 +4,7 @@
 
 | 版本 | 支持 |
 |------|------|
-| 最新 release（当前 [v0.3.0](https://github.com/shanananana/deepticket/releases/latest)） | ✅ |
+| 最新 release（当前 [v0.3.1](https://github.com/shanananana/deepticket/releases/latest)） | ✅ |
 | 更早版本 | ❌ 请升级后复测 |
 
 ## 报告漏洞

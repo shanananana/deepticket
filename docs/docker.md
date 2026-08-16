@@ -95,7 +95,7 @@ cp .env.docker.example .env
 docker compose -f docker-compose.image.yml up -d
 ```
 
-固定版本（推荐生产）：编辑 `docker-compose.image.yml`，将 `image` 改为例如 `ghcr.io/shanananana/deepticket:v0.3.0`。
+固定版本（推荐生产）：编辑 `docker-compose.image.yml`，将 `image` 改为例如 `ghcr.io/shanananana/deepticket:v0.3.1`。
 
 ## 维护者：发布公开镜像
 
