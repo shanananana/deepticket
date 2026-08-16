@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="docs/assets/banner-header.png" width="100%" alt="DeepTicket">
+</p>
+
+<p align="center">
   <a href="README.en.md">English</a>
   ·
   <a href="CHANGELOG.md">更新日志</a>
@@ -131,7 +135,7 @@ DeepTicket 是 **OpenHands 之上的薄编排层**：工作台 + Git 知识库 +
 pytest -q
 bash scripts/verify.sh --online
 </code></pre>
-<p>见 <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> · Alpha 阶段，欢迎 Star / Issue</p>
+<p>见 <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> · Alpha（<a href="https://github.com/shanananana/deepticket/releases/tag/v0.3.0">v0.3.0</a>），欢迎 Star / Issue</p>
 
 </details>
 

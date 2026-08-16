@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="docs/assets/banner-header.png" width="100%" alt="DeepTicket">
+</p>
+
+<p align="center">
   <a href="README.md">中文</a>
   ·
   <a href="CHANGELOG.en.md">Changelog</a>
@@ -131,7 +135,7 @@ A **thin layer on OpenHands**: workbench, Git knowledge sync, Ingress/Webhook, a
 pytest -q
 bash scripts/verify.sh --online
 </code></pre>
-<p>See <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> · Alpha — Stars and Issues welcome</p>
+<p>See <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> · Alpha (<a href="https://github.com/shanananana/deepticket/releases/tag/v0.3.0">v0.3.0</a>) — Stars and Issues welcome</p>
 
 </details>
 
