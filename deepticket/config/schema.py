@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from deepticket.config.routing_schema import RouteConfig
+from deepticket.config.agents_defaults import DEFAULT_AGENTS_MD
 
 
 class LlmSettings(BaseModel):
@@ -206,6 +207,10 @@ class ExtensionsConfig(BaseModel):
     workspace_skills_dir: str = Field(
         default="workspace/project/.openhands/skills",
         description="发布到 Agent 工作区的 Skill 目标目录",
+    )
+    agents_md: str = Field(
+        default=DEFAULT_AGENTS_MD,
+        description="默认项目 agents.md（注入 OpenHands system_message_suffix）",
     )
 
 

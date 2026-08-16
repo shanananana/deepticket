@@ -35,7 +35,8 @@ services:
       - "127.0.0.1:8600:8600"
     environment:
       LLM_API_KEY: ${LLM_API_KEY:-}
-      DEEPTICKET_CONFIG: /app/deepticket.docker.yaml
+      # 持久化到 data 卷；侧栏「LLM 配置」写入 /app/data/deepticket.yaml，重建容器不丢
+      DEEPTICKET_CONFIG: /app/data/deepticket.yaml
       REDIS_URL: redis://redis:6379/0
     volumes:
       - deepticket_data:/app/data

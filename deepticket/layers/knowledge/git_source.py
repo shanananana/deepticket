@@ -24,6 +24,9 @@ def build_authenticated_git_url(repo: GitRepoConfig) -> str:
 
     key = repo.key.strip()
     if not key:
+        # 公开 https 仓库可无 token（匿名 clone）；私有仓仍需 key
+        if parsed.scheme in ("http", "https"):
+            return repo.url
         raise ValueError(f"Git 仓库 {repo.id} 缺少 key")
 
     if repo.url_template:

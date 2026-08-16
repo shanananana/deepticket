@@ -1,6 +1,7 @@
 import { renderMarkdown } from "/static/markdown.js?v=16";
 
 const ASSET_VERSION = "13";
+const MASCOT_ICON = "/static/mascot-icon.png";
 const TOKEN_KEY = "deepticket_token";
 const PROJECT_KEY = "deepticket_project_id";
 const RECORD_MODE_KEY = "deepticket_record_mode";
@@ -39,12 +40,33 @@ const ICONS = {
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
 };
 
-/** agents.md 默认模板：选择后填入下方编辑框，用户可再改 */
+/** agents.md 默认模板：选择后填入下方编辑框，用户可再改（与 deepticket/config/agents_defaults.py 保持一致） */
 const AGENTS_MD_TEMPLATES = [
   {
     id: "",
     label: "不注入（空）",
     content: "",
+  },
+  {
+    id: "standard",
+    label: "DeepTicket 标准（推荐）",
+    content: `你是 DeepTicket 项目助手，帮助同事排查故障、走读代码、分析业务指标与工单分流。
+
+基本原则：
+- 以 workspace 内的代码、日志、配置与文档为依据，引用具体路径与行号
+- 先复述问题与影响面，再给出结论；不确定处明确标注「待验证」
+- 默认只读：不修改代码、不执行写盘或对外发网的命令
+- 不臆造配置、指标、日志或代码；没有证据时说明缺什么信息
+
+回复结构（可按场景裁剪）：
+1. 摘要 — 现象与影响
+2. 分析 — 根因假设与证据
+3. 建议 — 排查步骤或可执行动作
+
+可用能力：
+- 检索已同步的 Git 知识库与工作区文件
+- 调用已挂载的 MCP 与 Skill（如 log-query、config-query）
+- 需要权限或环境时，说明 blocker 而非强行猜测`,
   },
   {
     id: "sre",
@@ -373,12 +395,26 @@ function autoResizePrompt() {
  * 消息渲染
  * ------------------------------------------------------------------------ */
 
+function fillMessageAvatar(avatar, role) {
+  avatar.replaceChildren();
+  if (role === "user") {
+    avatar.textContent = (currentUser?.username?.[0] || "U").toUpperCase();
+    return;
+  }
+  const img = document.createElement("img");
+  img.src = MASCOT_ICON;
+  img.alt = "DeepTicket AI";
+  img.width = 28;
+  img.height = 28;
+  avatar.appendChild(img);
+}
+
 function createMessageRow(role) {
   const row = document.createElement("div");
   row.className = `msg ${role}`;
   const avatar = document.createElement("div");
   avatar.className = "msg-avatar";
-  avatar.textContent = role === "user" ? (currentUser?.username?.[0] || "U").toUpperCase() : "AI";
+  fillMessageAvatar(avatar, role);
   const body = document.createElement("div");
   body.className = "msg-body";
   const content = document.createElement("div");
@@ -1080,7 +1116,7 @@ async function pollChatForReply(chatId, baselineCount, { maxAttempts = 15 } = {}
     const messageCount = Number(status.message_count || 0);
     if (status.agent_run_status === "failed") {
       const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
-      const data = await resp.json();
+  const data = await resp.json();
       return { chat: data.chat || {}, message: null };
     }
     if (messageCount > baselineCount && latest?.role === "assistant" && latest.content) {
@@ -1315,11 +1351,11 @@ async function sendMessage(text) {
           const line = part.split("\n").find((l) => l.startsWith("data: "));
           if (line) {
             try {
-              const meta = JSON.parse(line.slice(6));
-              if (meta.conversation_id) {
+            const meta = JSON.parse(line.slice(6));
+            if (meta.conversation_id) {
                 agentConversationId = meta.conversation_id;
                 updateConversationMeta();
-              }
+            }
             } catch { /* 忽略 */ }
           }
           continue;
@@ -2124,7 +2160,7 @@ reloadSkillsBtn.addEventListener("click", async () => {
   try {
     const resp = await apiFetch(projectQuery("/api/skills/reload"), { method: "POST" });
     if (!resp.ok) {
-      const data = await resp.json();
+    const data = await resp.json();
       throw new Error(data.detail || "重载失败");
     }
     const data = await resp.json();

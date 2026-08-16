@@ -7,7 +7,7 @@
   ·
   <a href="CHANGELOG.en.md">Changelog</a>
   ·
-  <a href="https://github.com/shanananana/deepticket/releases/tag/v0.3.0">v0.3.0</a>
+  <a href="https://github.com/shanananana/deepticket/releases/tag/v0.3.1">v0.3.1</a>
   ·
   <a href="LICENSE">MIT</a>
 </p>
@@ -21,16 +21,18 @@
 
 <h3 align="center">Self-hosted SRE Agent orchestration for business teams</h3>
 
-<p align="center">Wire MCP, logs, config, and ITSM on OpenHands — does not replace company Copilot platforms</p>
+<p align="center">A thin layer on OpenHands: logs, config, MCP, tickets, alerts. Not a replacement for company Copilot.</p>
 
 <p align="center">
+  <a href="#use-cases"><strong>Use cases</strong></a>
+  ·
   <a href="#quick-start"><strong>Quick start</strong></a>
   ·
   <a href="docs/docker.md">Docker docs</a>
   ·
   <a href="docs/DEMO_PROMPT.md">Sample prompts</a>
   ·
-  <a href="docs/assets/architecture.svg">Architecture</a>
+  <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
 ---
@@ -61,7 +63,7 @@ cp .env.docker.example .env
 docker compose -f docker-compose.image.yml up -d
 </code></pre>
 
-<p><code>ghcr.io/shanananana/deepticket:v0.3.0</code> · see <a href="docs/docker.md">docs/docker.md</a></p>
+<p><code>ghcr.io/shanananana/deepticket:v0.3.1</code> · see <a href="docs/docker.md">docs/docker.md</a></p>
 
 </details>
 
@@ -91,62 +93,63 @@ bash scripts/start_all.sh
 
 ## What it is
 
-A **thin layer on OpenHands**: workbench, Git knowledge sync, Ingress/Webhook, and multi-project config — agents ground answers in **source + logs + config**, not RAG guesses alone.
+DeepTicket sits on OpenHands: Git sync for knowledge, a chat workbench, per-project MCP and Ingress. Answers pull from source, logs, and config—not just retrieved doc chunks.
 
-<p align="center">
-  <a href="docs/assets/architecture.svg"><img src="docs/assets/architecture.png" width="640" alt="Architecture"></a>
-</p>
-
-| | Pure RAG | Platform Copilot | **DeepTicket** |
-|--|:--:|:--:|:--:|
-| Read Git source | Chunks | Limited | ✅ |
-| Internal logs / config | Ingest | Coarse | ✅ MCP / Skills |
-| Ticket / alert loop | ❌ | Weak | ✅ Ingress |
-| Team self-host pilot | Medium | Wait on platform | ✅ Docker / yaml |
+Meant for a business team to run themselves (often Docker on a small pilot). Coexists with company-wide Copilot.
 
 ---
 
-## More
+## Use cases
+
+<h3>Product, ops, QA</h3>
+
+<p>Hook up logs and config, add a few MCP tools (config lookup, release history, internal docs), and give accounts to non-engineers. Typical questions: bug or not? matches the spec? prod vs doc mismatch?</p>
+
+<p>Replies cite log lines, config keys, and code paths. Close it yourself if it checks out; ping engineering with context if not—fewer screenshot ping-pongs.</p>
+
+<h3>Reports and metrics</h3>
+
+<p>With a reporting/BI MCP, ask cross-sheet questions—campaign ROI vs daily report, which channel dropped. Humans spend hours aligning definitions; let the machine run the joins first, then you decide what to trust.</p>
+
+<p>Vertical example: <a href="https://github.com/shanananana/ad_agent">ad_agent</a> (ad ROI). DeepTicket is the wiring and multi-project shell.</p>
+
+<h3>Tickets and alerts</h3>
+
+<p>HTTP from your ticket or alert system, async analysis in the background, conclusion out via Webhook (target is configurable). On-call reads the draft, then escalates or not.</p>
 
 <details>
-<summary><strong>Capabilities</strong></summary>
+<summary>vs pure RAG / company Copilot</summary>
 
-<ul>
-<li><strong>Multi-project</strong> — Sidebar switch; per-project repos / MCP / agents.md (Redis, sectional admin saves)</li>
-<li><strong>Workbench</strong> — Chat, Thinking steps, confidence, screenshot upload, background persistence</li>
-<li><strong>Ingress</strong> — HTTP in → async analysis → Webhook out (<code>bash scripts/test_ingress_e2e.sh</code>)</li>
-<li><strong>Example</strong> — Vertical agent: <a href="https://github.com/shanananana/ad_agent">ad_agent</a>; DeepTicket wires infra</li>
-</ul>
+| | Pure RAG | Platform Copilot | DeepTicket |
+|--|:--:|:--:|:--:|
+| Read Git source | Chunks | Limited | ✅ |
+| Internal logs / config | Ingest | Coarse | ✅ MCP / Skills |
+| Ticket / alert write-back | ❌ | Weak | ✅ Ingress |
+| Team self-host | Varies | Wait on platform | ✅ Docker / yaml |
+
+<p><a href="docs/assets/architecture.svg">Architecture diagram</a></p>
 
 </details>
 
-<details>
-<summary><strong>Configuration</strong></summary>
+---
 
-<p>Main file <code>deepticket.yaml</code> (from <code>deepticket.example.yaml</code>). Sections: <code>llm</code> · <code>knowledge.repos</code> · <code>ingress</code> · <code>storage</code> (Redis for multi-project) · <code>mcp</code></p>
-<p>Admin API: <code>/api/admin/projects/{id}</code> · UI: sidebar Project settings</p>
+## Docs
 
-</details>
+<p><a href="docs/docker.md">Docker</a> · <a href="docs/DEMO_PROMPT.md">Sample prompts</a> · <a href="docs/quickstart-demo.md">Demo recording</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
 
-<details>
-<summary><strong>Development</strong></summary>
+<p>Copy <code>deepticket.example.yaml</code> to configure; multi-project, MCP, Ingress in the sidebar or yaml. Admin API: <code>/api/admin/projects/{id}</code></p>
 
-<pre><code>pip install -e ".[dev]"
-pytest -q
-bash scripts/verify.sh --online
-</code></pre>
-<p>See <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> · Alpha (<a href="https://github.com/shanananana/deepticket/releases/tag/v0.3.0">v0.3.0</a>) — Stars and Issues welcome</p>
+---
 
-</details>
+## FAQ
 
-<details>
-<summary><strong>FAQ</strong></summary>
+<p><strong>vs OpenHands?</strong> OpenHands runs the agent; DeepTicket is the workbench, Git sync, and ticket hook.</p>
 
-<p><strong>vs OpenHands?</strong> OpenHands runs the agent; DeepTicket adds tickets, knowledge sync, and multi-user workbench.</p>
-<p><strong>vs company Copilot?</strong> Coexists — a thin self-hosted team layer.</p>
-<p><strong>Minimum to run?</strong> LLM key + optional Git repos; log/config MCP when you need them.</p>
+<p><strong>vs company Copilot?</strong> Coexists—usually a small team-owned deploy.</p>
 
-</details>
+<p><strong>Minimum setup?</strong> LLM key; Git repos optional; log/config MCP when needed.</p>
+
+<p>Local dev: <code>pip install -e ".[dev]"</code> · <code>pytest -q</code> · <code>bash scripts/verify.sh --online</code></p>
 
 ---
 

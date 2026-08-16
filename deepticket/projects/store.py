@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import logging
 from typing import Any
 
@@ -41,7 +42,7 @@ class ProjectConfigStore:
             mcp={"servers": dict(self.app_config.mcp.servers)},
             extensions={
                 "user_skills_dir": self.app_config.extensions.user_skills_dir or "",
-                "agents_md": "",
+                "agents_md": self.app_config.extensions.agents_md,
             },
         )
 
@@ -61,7 +62,17 @@ class ProjectConfigStore:
         if _DEFAULT_PROJECT_ID not in index:
             self._ensure_index_entry(_DEFAULT_PROJECT_ID)
             logger.info("已注册默认项目索引: %s（配置走 Redis 或 yaml 兜底）", _DEFAULT_PROJECT_ID)
-        return self.get(_DEFAULT_PROJECT_ID)
+        raw = self.get_raw(_DEFAULT_PROJECT_ID)
+        if raw is not None:
+            ext = raw.get("extensions")
+            if isinstance(ext, dict) and "agents_md" not in ext:
+                default_md = (self.app_config.extensions.agents_md or "").strip()
+                if default_md:
+                    self.patch_extensions(_DEFAULT_PROJECT_ID, agents_md=default_md)
+        record = self.get(_DEFAULT_PROJECT_ID)
+        if record is None:
+            raise ValueError(f"默认项目配置无效: {_DEFAULT_PROJECT_ID}")
+        return record
 
     def _load_index(self) -> list[str]:
         doc = self.storage.get_json(_NS_INDEX, "all") or {}
@@ -150,7 +161,21 @@ class ProjectConfigStore:
         return self.apply_patch(project_id, {"knowledge": {"repos": repos}})
 
     def patch_mcp(self, project_id: str, servers: dict[str, Any]) -> ProjectConfigRecord:
-        return self.apply_patch(project_id, {"mcp": {"servers": servers}})
+        """整表替换 mcp.servers（避免 deep_merge 残留已删的 server 项）。"""
+        raw = self.get_raw(project_id) or {}
+        merged = deep_merge(raw, {})
+        mcp_block = merged.get("mcp")
+        if not isinstance(mcp_block, dict):
+            mcp_block = {}
+        mcp_block["servers"] = copy.deepcopy(servers)
+        merged["mcp"] = mcp_block
+        merged["id"] = project_id
+        self.storage.set_json(_NS_PROJECTS, project_id, merged)
+        self._ensure_index_entry(project_id)
+        resolved = self.resolve(project_id, merged)
+        if resolved is None:
+            raise ValueError(f"项目配置无效: {project_id}")
+        return resolved
 
     def patch_extensions(
         self,

@@ -13,6 +13,18 @@
 | `demo-flow.svg` | Static demo flow (fallback diagram) |
 | `demo.mp4` | Full demo screen recording (~67s, 1280×682, 15fps) |
 | `demo.gif` | README autoplay preview (720px, links to MP4) |
+| `mascot/` | ComfyUI 生成的看板娘 icon / banner（见 `comfyui/README.md`） |
+| `comfyui/` | ComfyUI 提示词与生成说明 |
+
+## 看板娘 / Banner（ComfyUI）
+
+```bash
+# 1. 启动 ComfyUI Desktop（8188）
+# 2. 安装动漫 checkpoint 到 models/checkpoints/
+python scripts/comfyui/generate_brand_assets.py --checkpoint YOUR.safetensors
+```
+
+详见 [comfyui/README.md](comfyui/README.md)。
 
 ## Re-compress a new recording
 

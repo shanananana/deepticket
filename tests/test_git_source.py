@@ -57,7 +57,16 @@ def test_url_template_overrides() -> None:
     )
 
 
-def test_missing_key_raises() -> None:
-    repo = GitRepoConfig(id="x", url="https://github.com/a/b.git", key="")
+def test_missing_key_raises_for_non_http() -> None:
+    repo = GitRepoConfig(id="x", url="ssh://git@github.com/a/b.git", key="")
     with pytest.raises(ValueError, match="缺少 key"):
         build_authenticated_git_url(repo)
+
+
+def test_public_https_allows_anonymous_clone() -> None:
+    repo = GitRepoConfig(
+        id="ad-agent",
+        url="https://github.com/shanananana/ad_agent.git",
+        key="",
+    )
+    assert build_authenticated_git_url(repo) == "https://github.com/shanananana/ad_agent.git"

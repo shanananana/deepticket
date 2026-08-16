@@ -10,7 +10,20 @@
 
 ---
 
-## [0.3.0] - 2026-08-15
+## [0.3.1] - 2026-08-16
+
+### Added
+
+- **看板娘品牌图标**：Web 侧栏、登录页、AI 聊天头像与 favicon（`mascot-icon*.png`）
+- **标准 agents.md 默认模板**：`deepticket/config/agents_defaults.py`；yaml 兜底与项目配置「DeepTicket 标准（推荐）」
+
+### Changed
+
+- **Docker LLM 配置持久化**：`DEEPTICKET_CONFIG` 指向 data 卷内 `deepticket.yaml`（`docker-compose.yml` / `docker-compose.image.yml`）
+- **公开 Git 仓库**：无 token 时可匿名 clone（`git_source.py`）
+- README 结构微调；`docs/assets` logo/banner 更新
+
+---
 
 ### Added
 
@@ -141,9 +154,10 @@
 
 - [English Changelog](CHANGELOG.en.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased 对比 v0.3.0](https://github.com/shanananana/deepticket/compare/v0.3.0...HEAD)
+- [Unreleased 对比 v0.3.1](https://github.com/shanananana/deepticket/compare/v0.3.1...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/shanananana/deepticket/releases/tag/v0.3.1
 [0.3.0]: https://github.com/shanananana/deepticket/releases/tag/v0.3.0
 [0.2.3]: https://github.com/shanananana/deepticket/releases/tag/v0.2.3
 [0.2.2]: https://github.com/shanananana/deepticket/releases/tag/v0.2.2

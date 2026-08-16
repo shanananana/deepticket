@@ -1,6 +1,6 @@
 [project]
 name = "deepticket"
-version = "0.3.0"
+version = "0.3.1"
 description = "AI Agent platform for incident triage and project Q&A on OpenHands — Git sync, logs, config center, Ingress/Webhook"
 readme = "README.md"
 license = "MIT"

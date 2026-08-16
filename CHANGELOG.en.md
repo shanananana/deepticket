@@ -10,7 +10,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
-## [0.3.0] - 2026-08-15
+## [0.3.1] - 2026-08-16
+
+### Added
+
+- **Mascot branding**: sidebar, login, AI chat avatar, and favicon (`mascot-icon*.png`)
+- **Standard agents.md default**: `deepticket/config/agents_defaults.py`; yaml fallback and “DeepTicket Standard (recommended)” project template
+
+### Changed
+
+- **Docker LLM config persistence**: `DEEPTICKET_CONFIG` points to `deepticket.yaml` on the data volume (`docker-compose.yml` / `docker-compose.image.yml`)
+- **Public Git repos**: anonymous clone when no token is set (`git_source.py`)
+- README structure tweaks; updated `docs/assets` logo/banner
+
+---
 
 ### Added
 
@@ -141,9 +154,10 @@ First public **Alpha** release.
 
 - [中文更新日志](CHANGELOG.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased vs v0.3.0](https://github.com/shanananana/deepticket/compare/v0.3.0...HEAD)
+- [Unreleased vs v0.3.1](https://github.com/shanananana/deepticket/compare/v0.3.1...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/shanananana/deepticket/releases/tag/v0.3.1
 [0.3.0]: https://github.com/shanananana/deepticket/releases/tag/v0.3.0
 [0.2.3]: https://github.com/shanananana/deepticket/releases/tag/v0.2.3
 [0.2.2]: https://github.com/shanananana/deepticket/releases/tag/v0.2.2

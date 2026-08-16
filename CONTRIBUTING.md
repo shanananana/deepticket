@@ -1,12 +1,16 @@
 # 贡献指南 / Contributing
 
-感谢考虑为 DeepTicket 贡献！项目处于 **Alpha（0.2.x）**，欢迎文档、Skill 模板、集成示例和小功能改进。
+感谢考虑为 DeepTicket 贡献！项目处于 **Alpha（当前 [v0.3.0](https://github.com/shanananana/deepticket/releases/tag/v0.3.0)）**，欢迎文档、Skill 模板、集成示例和小功能改进。
 
-Thank you for contributing! DeepTicket is in **alpha**; we welcome docs, Skill templates, integration examples, and focused code changes.
+Thank you for contributing! DeepTicket is in **alpha** (current release **v0.3.0**); we welcome docs, Skill templates, integration examples, and focused code changes.
 
 ---
 
 ## 快速开始
+
+**试用 / 演示**（无需本地 Python）：见 [docs/docker.md](docs/docker.md) 或 README 的 Docker 快速开始；LLM Key 可在 Web **LLM 配置** 填写。
+
+**开发贡献**（clone + venv）：
 
 ```bash
 git clone https://github.com/shanananana/deepticket.git
@@ -17,7 +21,7 @@ pytest -q
 ruff check deepticket tests
 ```
 
-编辑本地 `deepticket.yaml`（已 gitignore），**勿提交密钥**。
+编辑本地 `deepticket.yaml`（已 gitignore），**勿提交密钥**；也可启动后在 Web **LLM 配置** 填写 API Key。
 
 ---
 
@@ -65,14 +69,14 @@ ruff check deepticket tests
 3. 打 tag 并推送（会触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)）：
 
 ```bash
-git tag -a v0.1.3 -m "v0.1.3"
-git push origin v0.1.3
+git tag -a v0.3.1 -m "v0.3.1"
+git push origin v0.3.1
 ```
 
 本地预览 Release 标题/正文：
 
 ```bash
-bash scripts/extract_changelog_release.sh v0.1.3
+bash scripts/extract_changelog_release.sh v0.3.1
 ```
 
 **不要**只 push tag 不写 CHANGELOG；workflow 找不到对应章节会失败。

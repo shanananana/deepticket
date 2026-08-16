@@ -63,6 +63,22 @@ def test_patch_mcp_merge_without_touching_repos(tmp_path):
     assert "name" not in raw
 
 
+def test_patch_mcp_replace_clears_removed_servers(tmp_path):
+    storage = LocalStorage(str(tmp_path / "data"))
+    store = ProjectConfigStore(storage, AppConfig())
+    store.ensure_default_project()
+
+    store.patch_mcp(
+        "default",
+        {"old-mcp": {"transport": "stdio", "command": "echo", "enabled": True}},
+    )
+    store.patch_mcp("default", {})
+
+    raw = store.get_raw("default")
+    assert raw is not None
+    assert raw["mcp"]["servers"] == {}
+
+
 def test_project_permissions_revoke_on_replace(tmp_path):
     storage = LocalStorage(str(tmp_path / "data"))
     perms = ProjectPermissionStore(storage)

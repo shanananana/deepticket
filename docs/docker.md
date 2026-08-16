@@ -21,6 +21,31 @@ docker compose up -d --build
 
 浏览器打开 **http://127.0.0.1:8600**，默认账户 `admin` / `admin`。若未配置 LLM，登录后会引导至 **LLM 配置**。
 
+## Demo：Skill + 示例 log（默认不启用 MCP）
+
+`deepticket.docker.yaml` 已预置 **ad-agent** 公开仓，**MCP 为空**。首次体验：
+
+1. 登录 → 侧栏选 **默认项目**（勿在项目配置里添加 `echo` 等假 MCP）
+2. **同步知识库**（拉取 ad-agent 到 workspace）
+3. 生成示例投放 log：
+   ```bash
+   docker exec deepticket bash scripts/docker/seed_demo_logs.sh
+   ```
+4. 新建对话，粘贴 [DEMO_PROMPT.md](DEMO_PROMPT.md) 里的 **ROI** 提问
+
+Agent 会通过 **log-query Skill** 查 log、读 `campaigns.yaml` / `budget_allocator.py`，无需 MCP。
+
+若使用本机已有 `workspace/knowledge/ad-agent`（含 log），可挂载：
+
+```yaml
+# docker-compose.yml → deepticket.volumes
+- ./workspace:/app/workspace
+- ./deepticket.yaml:/app/deepticket.yaml:ro
+# environment: DEEPTICKET_CONFIG=/app/deepticket.yaml
+```
+
+**注意：** Docker 内勿使用 `file:///Users/...` 这类 Mac 路径；用 GitHub 公开仓或挂载 volume。
+
 ## 常用命令
 
 ```bash
@@ -70,11 +95,11 @@ cp .env.docker.example .env
 docker compose -f docker-compose.image.yml up -d
 ```
 
-固定版本（推荐生产）：编辑 `docker-compose.image.yml`，将 `image` 改为例如 `ghcr.io/shanananana/deepticket:v0.2.4`。
+固定版本（推荐生产）：编辑 `docker-compose.image.yml`，将 `image` 改为例如 `ghcr.io/shanananana/deepticket:v0.3.0`。
 
 ## 维护者：发布公开镜像
 
-1. 更新 `CHANGELOG.md`，提交并打 tag：`git tag v0.2.4 && git push origin v0.2.4`
+1. 更新 `CHANGELOG.md`，提交并打 tag：`git tag v0.3.1 && git push origin v0.3.1`（示例为下一 patch；minor 同理，如 `v0.4.0`）
 2. GitHub Actions **Docker Publish** 工作流会自动 build → push 到 GHCR → 将包设为 **Public**
 3. 首次可在 [Packages](https://github.com/users/shanananana/packages) 确认 `deepticket` 可见且为公开
 

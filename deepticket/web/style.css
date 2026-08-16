@@ -274,6 +274,21 @@ body {
   font-size: 12px;
 }
 
+.brand-mark.mascot,
+img.brand-mark {
+  padding: 0;
+  object-fit: cover;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 50%;
+}
+
+.brand-mark.mascot.sm,
+img.brand-mark.sm {
+  width: 34px;
+  height: 34px;
+}
+
 /* --------------------------------------------------------------------------
    登录页
    -------------------------------------------------------------------------- */
@@ -997,9 +1012,19 @@ body {
 }
 
 .msg.assistant .msg-avatar {
+  padding: 0;
+  overflow: hidden;
   color: #0369a1;
-  background: rgba(14, 165, 233, 0.1);
+  background: transparent;
   border: 1px solid rgba(14, 165, 233, 0.16);
+}
+
+.msg.assistant .msg-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: calc(var(--r-xs) - 1px);
 }
 
 .msg-body { min-width: 0; max-width: calc(100% - 40px); }
