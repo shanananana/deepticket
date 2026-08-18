@@ -52,11 +52,9 @@ DeepTicket 是业务组自己部署的 **Agent 编排层**：把 Git 知识库�
 ## 演示
 
 <p align="center">
-  <a href="https://github.com/shanananana/deepticket/raw/main/docs/assets/%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mp4">
-    <img src="docs/assets/demo-poster.jpg" width="720" alt="DeepTicket 演示 — 点击播放视频">
-  </a>
+  <video src="https://github.com/user-attachments/assets/d5f5f2bf-1d78-44c2-b6db-35f31ac007ae" width="720" controls autoplay muted loop playsinline></video>
 </p>
-<p align="center"><sub>▶ 点击截图在新标签页播放 MP4 · ad-agent ROI 归因 · 约 55 秒</sub></p>
+<p align="center"><sub>ad-agent ROI 归因 Demo · 查日志 / 读配置 / 读代码 · 约 55 秒</sub></p>
 
 ---
 

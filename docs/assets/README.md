@@ -11,8 +11,8 @@
 | `architecture.svg` | Architecture diagram (vector source, five-layer scheme A) |
 | `architecture.png` | README preview image (click-through to SVG) |
 | `demo-flow.svg` | Static demo flow (fallback diagram) |
-| `演示视频.mp4` | README demo screen recording (~55s, 1280×642, 30fps) |
-| `demo-poster.jpg` | README 封面图（点击跳转 MP4；GitHub 不支持内嵌 `<video>`） |
+| `演示视频.mp4` | 仓库内源文件（~55s, 1280×642）；README 用 GitHub 图床播放 |
+| `demo-poster.jpg` | 可选封面帧（更新图床视频后可用 ffmpeg 重导） |
 | `mascot/` | ComfyUI 生成的看板娘 icon / banner（见 `comfyui/README.md`） |
 | `comfyui/` | ComfyUI 提示词与生成说明 |
 
@@ -39,16 +39,14 @@ ffmpeg -y -hwaccel videotoolbox -i /path/to/recording.mp4 \
   docs/assets/演示视频.mp4
 ```
 
-README embed (root `README.md` / `README.en.md`) — GitHub **不会播放** 相对路径的 `<video>`，用封面图 + raw MP4 链接：
+README embed — 使用 GitHub Issue 上传后的 **user-attachments** URL（与 MoneyPrinterTurbo 相同做法）：
 
 ```html
 <p align="center">
-  <a href="https://github.com/shanananana/deepticket/raw/main/docs/assets/%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mp4">
-    <img src="docs/assets/demo-poster.jpg" width="720" alt="DeepTicket demo">
-  </a>
+  <video src="https://github.com/user-attachments/assets/d5f5f2bf-1d78-44c2-b6db-35f31ac007ae" width="720" controls autoplay muted loop playsinline></video>
 </p>
 ```
 
-更新封面：`ffmpeg -ss 8 -i docs/assets/演示视频.mp4 -frames:v 1 -q:v 2 docs/assets/demo-poster.jpg`
+换视频：在 Issue/PR 拖入新 MP4 → 替换 URL。源文件仍保存在 `docs/assets/演示视频.mp4`。
 
 **Do not commit** real API keys, internal URLs, or production ticket content in recordings.
