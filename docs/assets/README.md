@@ -38,11 +38,11 @@ ffmpeg -y -hwaccel videotoolbox -i /path/to/recording.mp4 \
   docs/assets/演示视频.mp4
 ```
 
-README embed (root `README.md` / `README.en.md`):
+README embed (root `README.md` / `README.en.md`) — placed under **简介 / Overview**, above **特性 / Features**:
 
 ```html
 <p align="center">
-  <video src="docs/assets/演示视频.mp4" width="640" controls autoplay muted loop playsinline></video>
+  <video src="docs/assets/演示视频.mp4" width="720" controls autoplay muted loop playsinline></video>
 </p>
 ```
 

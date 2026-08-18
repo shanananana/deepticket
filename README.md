@@ -28,6 +28,8 @@
 <p align="center">
   <a href="#简介"><strong>简介</strong></a>
   ·
+  <a href="#演示"><strong>演示</strong></a>
+  ·
   <a href="#特性"><strong>特性</strong></a>
   ·
   <a href="#典型场景"><strong>典型场景</strong></a>
@@ -44,6 +46,15 @@
 DeepTicket 是业务组自己部署的 **Agent 编排层**：把 Git 知识库、内网日志与配置、MCP 工具、工单/告警接到同一工作台，在 OpenHands 上跑多轮排查。
 
 它解决的不是「多聊几句」，而是 **一线关单前能查到依据**——源码路径、日志行、配置项——而不是只检索几段文档。研发继续用 Copilot；业务组通常 Docker 起一套小的，先在小范围试。
+
+---
+
+## 演示
+
+<p align="center">
+  <video src="docs/assets/演示视频.mp4" width="720" controls autoplay muted loop playsinline></video>
+</p>
+<p align="center"><sub>ad-agent ROI 归因 Demo · 查日志 / 读配置 / 读代码 · 约 55 秒</sub></p>
 
 ---
 
@@ -119,14 +130,6 @@ DeepTicket 是业务组自己部署的 **Agent 编排层**：把 Git 知识库�
 <h3>工单、告警</h3>
 
 <p>内部工单或报警平台 HTTP 打进来，后台异步分析，结论用 Webhook 写回去。值班先看一眼机器总结，再决定要不要升级叫人。</p>
-
----
-
-## Demo
-
-<p align="center">
-  <video src="docs/assets/演示视频.mp4" width="640" controls autoplay muted loop playsinline></video>
-</p>
 
 ---
 

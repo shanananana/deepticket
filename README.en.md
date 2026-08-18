@@ -28,6 +28,8 @@
 <p align="center">
   <a href="#overview"><strong>Overview</strong></a>
   ·
+  <a href="#demo"><strong>Demo</strong></a>
+  ·
   <a href="#features"><strong>Features</strong></a>
   ·
   <a href="#use-cases"><strong>Use cases</strong></a>
@@ -44,6 +46,15 @@
 DeepTicket is a **team-owned Agent orchestration layer**: Git knowledge, internal logs and config, MCP tools, and ticket/alert hooks in one workbench, with multi-turn investigation on OpenHands.
 
 The goal is not “chat more”—it is **evidence before close or escalate**: source paths, log lines, config keys—not just retrieved doc chunks. Engineering keeps Copilot; business teams usually pilot with Docker on their own infra.
+
+---
+
+## Demo
+
+<p align="center">
+  <video src="docs/assets/演示视频.mp4" width="720" controls autoplay muted loop playsinline></video>
+</p>
+<p align="center"><sub>ad-agent ROI investigation · logs / config / code · ~55s</sub></p>
 
 ---
 
@@ -119,14 +130,6 @@ The goal is not “chat more”—it is **evidence before close or escalate**: s
 <h3>Tickets and alerts</h3>
 
 <p>HTTP from your ticket or alert system, async analysis, conclusion out via Webhook. On-call reads the draft, then escalates or not.</p>
-
----
-
-## Demo
-
-<p align="center">
-  <video src="docs/assets/演示视频.mp4" width="640" controls autoplay muted loop playsinline></video>
-</p>
 
 ---
 
