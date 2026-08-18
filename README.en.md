@@ -52,9 +52,11 @@ The goal is not “chat more”—it is **evidence before close or escalate**: s
 ## Demo
 
 <p align="center">
-  <video src="docs/assets/演示视频.mp4" width="720" controls autoplay muted loop playsinline></video>
+  <a href="https://github.com/shanananana/deepticket/raw/main/docs/assets/%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mp4">
+    <img src="docs/assets/demo-poster.jpg" width="720" alt="DeepTicket demo — click to play video">
+  </a>
 </p>
-<p align="center"><sub>ad-agent ROI investigation · logs / config / code · ~55s</sub></p>
+<p align="center"><sub>▶ Click the screenshot to open MP4 · ad-agent ROI demo · ~55s</sub></p>
 
 ---
 
