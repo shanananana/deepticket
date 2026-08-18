@@ -54,7 +54,7 @@ DeepTicket 是业务组自己部署的 **Agent 编排层**：把 Git 知识库�
 <p align="center">
   <video src="https://github.com/user-attachments/assets/3bc7b913-f3a9-49c5-bbe7-1c15f1a0381b" width="720" controls autoplay muted loop playsinline></video>
 </p>
-<p align="center"><sub>ad-agent ROI 归因 Demo · 查日志 / 读配置 / 读代码 · 约 55 秒</sub></p>
+<p align="center"><sub>ad-agent ROI 归因 Demo · 查日志 等功能需真实真实mcp或skill后生效 部分ui为突出展示与实际项目不一致</sub></p>
 
 ---
 
