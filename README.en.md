@@ -125,7 +125,7 @@ The goal is not “chat more”—it is **evidence before close or escalate**: s
 ## Demo
 
 <p align="center">
-  <a href="docs/assets/demo.mp4"><img src="docs/assets/demo.gif" width="640" alt="DeepTicket demo"></a>
+  <video src="docs/assets/演示视频.mp4" width="640" controls autoplay muted loop playsinline></video>
 </p>
 
 ---

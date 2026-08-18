@@ -11,8 +11,7 @@
 | `architecture.svg` | Architecture diagram (vector source, five-layer scheme A) |
 | `architecture.png` | README preview image (click-through to SVG) |
 | `demo-flow.svg` | Static demo flow (fallback diagram) |
-| `demo.mp4` | Full demo screen recording (~67s, 1280×682, 15fps) |
-| `demo.gif` | README autoplay preview (720px, links to MP4) |
+| `演示视频.mp4` | README demo screen recording (~55s, 1280×642, 30fps) |
 | `mascot/` | ComfyUI 生成的看板娘 icon / banner（见 `comfyui/README.md`） |
 | `comfyui/` | ComfyUI 提示词与生成说明 |
 
@@ -36,17 +35,17 @@ ffmpeg -y -hwaccel videotoolbox -i /path/to/recording.mp4 \
   -vf "fps=15,scale=1280:-2:flags=lanczos,format=yuv420p" \
   -c:v libx264 -profile:v main -pix_fmt yuv420p -crf 27 -preset medium \
   -movflags +faststart -tag:v avc1 \
-  docs/assets/demo.mp4
+  docs/assets/演示视频.mp4
 ```
 
 README embed (root `README.md` / `README.en.md`):
 
 ```html
-<a href="docs/assets/demo.mp4">
-  <img src="docs/assets/demo.gif" width="720" alt="DeepTicket demo">
-</a>
+<p align="center">
+  <video src="docs/assets/演示视频.mp4" width="640" controls autoplay muted loop playsinline></video>
+</p>
 ```
 
-GitHub does not reliably play `<video>` in README; use GIF + MP4 link instead.
+GitHub README 可直接嵌入仓库内 MP4；若 CDN 不播放，用 raw 链接打开视频文件。
 
 **Do not commit** real API keys, internal URLs, or production ticket content in recordings.

@@ -125,7 +125,7 @@ DeepTicket 是业务组自己部署的 **Agent 编排层**：把 Git 知识库�
 ## Demo
 
 <p align="center">
-  <a href="docs/assets/demo.mp4"><img src="docs/assets/demo.gif" width="640" alt="DeepTicket 演示"></a>
+  <video src="docs/assets/演示视频.mp4" width="640" controls autoplay muted loop playsinline></video>
 </p>
 
 ---

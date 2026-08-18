@@ -11,7 +11,7 @@
     </style>
   </defs>
   <rect width="960" height="200" rx="16" fill="#f8fafc" stroke="#e2e8f0"/>
-  <text x="24" y="34" class="d">Demo flow (replace with docs/assets/demo.gif after recording)</text>
+  <text x="24" y="34" class="d">Demo flow (see docs/assets/演示视频.mp4)</text>
   <g transform="translate(24,52)">
     <rect width="200" height="120" rx="12" fill="url(#step)" stroke="#bfdbfe"/>
     <text x="20" y="34" class="n">1</text>
