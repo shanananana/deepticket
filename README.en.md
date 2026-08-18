@@ -52,7 +52,7 @@ The goal is not “chat more”—it is **evidence before close or escalate**: s
 ## Demo
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/d5f5f2bf-1d78-44c2-b6db-35f31ac007ae" width="720" controls autoplay muted loop playsinline></video>
+  <video src="https://github.com/user-attachments/assets/3bc7b913-f3a9-49c5-bbe7-1c15f1a0381b" width="720" controls autoplay muted loop playsinline></video>
 </p>
 <p align="center"><sub>ad-agent ROI demo · logs / config / code · ~55s</sub></p>
 
