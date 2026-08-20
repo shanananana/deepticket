@@ -38,6 +38,7 @@ data/
 .agents/
 node_modules/
 docs/_local/
+docs/LOCAL-BACKLOG.md
 ffmpeg2pass*.log
 *.swp
 .DS_Store
