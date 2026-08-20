@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from deepticket.core.app_factory import create_app
 from deepticket.layers.output.models import StreamChunk
+from deepticket.chat_orchestrator import ChatOrchestrator
 from deepticket.service import DeepTicketService
 from tests.conftest import INGRESS_AUTH_HEADERS
 
@@ -64,7 +65,7 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[TestClie
         yield StreamChunk(delta="analysis done", conversation_id="conv-1")
 
     monkeypatch.setattr(DeepTicketService, "startup", _noop_startup)
-    monkeypatch.setattr(DeepTicketService, "_run_stream", _fake_stream)
+    monkeypatch.setattr(ChatOrchestrator, "_run_stream", _fake_stream)
 
     with TestClient(create_app()) as test_client:
         yield test_client

@@ -34,6 +34,11 @@ data/
 # 编辑器与系统
 .idea/
 .vscode/
+.cursor/
+.agents/
+node_modules/
+docs/_local/
+ffmpeg2pass*.log
 *.swp
 .DS_Store
 

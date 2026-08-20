@@ -10,6 +10,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.3.2] - 2026-08-21
+
+### Changed
+
+- **Service split**: ingress logic in `ingress_runner.py`, chat/ticket orchestration in `chat_orchestrator.py`; `DeepTicketService` wires and delegates
+- **Skill publish policy**: no per-chat `publish_skills`; cache on first project run, reload when admins save project config (knowledge / MCP / extensions)
+- **SSE idle UX**: inject idle activity “仍在分析…” during long silent agent runs (better than ping-only keepalive)
+- **Admin frontend modules**: split into `app-shared.js`, `admin-token.js`, `admin-llm.js`, `admin-projects.js`; `app.js` focuses on chat
+
+### Performance
+
+- **Chat Redis I/O**: `append_message` no longer full `get_thread` reload; chat API uses `get_thread_summary` for pre-send checks
+- **Frontend polling**: reconnect/recovery via `/status` with exponential backoff; baseline from `message_count`, one full history fetch on success
+- **Redis indexing**: `json_index.py` ZSET index for token runs, ingress jobs, conversation/ticket counts (avoids full `SCAN`)
+- **OpenHands engine**: cache `agent_settings` by MCP/agents.md/LLM; reuse `httpx` client in HTTP activity polling
+
+### Fixed
+
+- Ingress tests: mock `ChatOrchestrator._run_stream`; webhook E2E uses local storage when Redis is unavailable
+- `test_token_usage`: align `chat_usage` namespace and key format with production
+
+---
+
 ## [0.3.1] - 2026-08-16
 
 ### Added
@@ -154,9 +177,10 @@ First public **Alpha** release.
 
 - [中文更新日志](CHANGELOG.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased vs v0.3.1](https://github.com/shanananana/deepticket/compare/v0.3.1...HEAD)
+- [Unreleased vs v0.3.2](https://github.com/shanananana/deepticket/compare/v0.3.2...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/shanananana/deepticket/releases/tag/v0.3.2
 [0.3.1]: https://github.com/shanananana/deepticket/releases/tag/v0.3.1
 [0.3.0]: https://github.com/shanananana/deepticket/releases/tag/v0.3.0
 [0.2.3]: https://github.com/shanananana/deepticket/releases/tag/v0.2.3

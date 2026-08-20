@@ -10,6 +10,29 @@
 
 ---
 
+## [0.3.2] - 2026-08-21
+
+### Changed
+
+- **服务层拆分**：Ingress 逻辑迁至 `ingress_runner.py`，聊天/工单编排迁至 `chat_orchestrator.py`；`DeepTicketService` 只做装配与委托
+- **Skill 发布策略**：不再在每条聊天前 `publish_skills`；改为项目首次运行时缓存发布，Admin 保存项目配置（知识库 / MCP / extensions）时自动重载
+- **SSE 长静默**：Agent 长时间无输出时注入 idle activity「仍在分析…」，降低网关断连概率（替代纯 ping 等待体验）
+- **Admin 前端模块化**：工作台脚本拆为 `app-shared.js`、`admin-token.js`、`admin-llm.js`、`admin-projects.js`；`app.js` 聚焦聊天主流程
+
+### 优化
+
+- **聊天 Redis 读写**：`append_message` 不再全量 `get_thread` 读回；发消息 API 用 `get_thread_summary` 校验会话
+- **前端轮询**：断连/后台恢复改用 `/status` + 指数退避；发送前 baseline 用 `message_count`，成功时仅一次全量拉历史
+- **Redis 索引**：新增 `json_index.py`，Token run、Ingress job、conversation/ticket 计数用 ZSET 索引，避免 `SCAN` 全表
+- **OpenHands 引擎**：按 MCP/agents.md/LLM 缓存 `agent_settings`；HTTP 活动轮询复用 `httpx` client
+
+### Fixed
+
+- Ingress 测试：`ChatOrchestrator._run_stream` mock 路径；webhook E2E 强制 local 存储，避免无 Redis 时失败
+- `test_token_usage`：`chat_usage` 命名空间与 key 格式与生产一致
+
+---
+
 ## [0.3.1] - 2026-08-16
 
 ### Added
@@ -154,9 +177,10 @@
 
 - [English Changelog](CHANGELOG.en.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased 对比 v0.3.1](https://github.com/shanananana/deepticket/compare/v0.3.1...HEAD)
+- [Unreleased 对比 v0.3.2](https://github.com/shanananana/deepticket/compare/v0.3.2...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/shanananana/deepticket/releases/tag/v0.3.2
 [0.3.1]: https://github.com/shanananana/deepticket/releases/tag/v0.3.1
 [0.3.0]: https://github.com/shanananana/deepticket/releases/tag/v0.3.0
 [0.2.3]: https://github.com/shanananana/deepticket/releases/tag/v0.2.3

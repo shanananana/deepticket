@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from deepticket.api.deps import get_service
@@ -17,6 +19,16 @@ from deepticket.auth.user_store import AuthUser
 from deepticket.projects.models import ProjectConfigRecord, ProjectMemberRecord
 
 router = APIRouter(prefix="/api/admin/projects", tags=["Admin Projects"])
+logger = logging.getLogger(__name__)
+
+
+def _refresh_project_skills(service, project_id: str) -> None:
+    try:
+        published = service.refresh_project_skills(project_id)
+        if published:
+            logger.info("项目 %s Skills 已重载: %s", project_id, ", ".join(published))
+    except (KeyError, OSError, ValueError) as exc:
+        logger.warning("项目 %s Skill 重载失败: %s", project_id, exc)
 
 
 def _project_admin_payload(service, project_id: str) -> dict:
@@ -81,6 +93,7 @@ async def admin_save_project(
         saved = service.projects.save_project(record)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _refresh_project_skills(service, project_id)
     return {"project": saved.model_dump(mode="json"), "in_redis": True}
 
 
@@ -101,6 +114,7 @@ async def admin_patch_project_meta(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _refresh_project_skills(service, project_id)
     return {"project": saved.model_dump(mode="json"), "in_redis": True}
 
 
@@ -116,6 +130,7 @@ async def admin_patch_project_knowledge(
         saved = service.projects.patch_project_knowledge(project_id, body.repos)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _refresh_project_skills(service, project_id)
     return {"project": saved.model_dump(mode="json"), "in_redis": True}
 
 
@@ -150,6 +165,7 @@ async def admin_patch_project_extensions(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _refresh_project_skills(service, project_id)
     return {"project": saved.model_dump(mode="json"), "in_redis": True}
 
 

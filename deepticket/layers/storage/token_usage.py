@@ -4,6 +4,7 @@ import uuid
 from typing import Any, Callable
 
 from deepticket.layers.storage.base import StorageBackend
+from deepticket.layers.storage.json_index import index_json_key, list_indexed_json_keys
 from deepticket.utils.time import utc_now_iso
 
 _NS_RUNS = "token_usage_runs"
@@ -51,16 +52,18 @@ class TokenUsageStore:
             "recorded_at": now,
         }
         self.storage.set_json(_NS_RUNS, run_id, doc)
+        index_json_key(self.storage, _NS_RUNS, run_id, sort_field="recorded_at", doc=doc)
         return doc
 
     def list_recent_runs(self, *, limit: int = 50) -> list[dict[str, Any]]:
         runs: list[dict[str, Any]] = []
-        for key in self.storage.list_keys(_NS_RUNS):
+        for key in list_indexed_json_keys(
+            self.storage, _NS_RUNS, limit=limit, sort_field="recorded_at"
+        ):
             doc = self.storage.get_json(_NS_RUNS, key)
             if doc:
                 runs.append(doc)
-        runs.sort(key=lambda item: item.get("recorded_at", ""), reverse=True)
-        return runs[:limit]
+        return runs
 
     def list_conversation_usage(
         self,

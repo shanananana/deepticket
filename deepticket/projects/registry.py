@@ -106,6 +106,32 @@ class ProjectRegistry:
         self.permissions = ProjectPermissionStore(storage)
         self.app_config = app_config
         self._resolve_path = resolve_path
+        self._skills_ready: set[str] = set()
+
+    def ensure_skills_published(self, project: ProjectContext) -> None:
+        pid = project.project_id
+        if pid in self._skills_ready:
+            return
+        try:
+            published = project.publish_skills()
+            if published:
+                logger.info(
+                    "项目 %s Skills 已发布: %s",
+                    pid,
+                    ", ".join(published),
+                )
+        except OSError as exc:
+            logger.warning("项目 %s Skill 发布失败: %s", pid, exc)
+        self._skills_ready.add(pid)
+
+    def invalidate_project_skills(self, project_id: str) -> None:
+        self._skills_ready.discard(project_id)
+
+    def reload_project_skills(self, project: ProjectContext) -> list[str]:
+        self._skills_ready.discard(project.project_id)
+        published = project.publish_skills()
+        self._skills_ready.add(project.project_id)
+        return published
 
     def bootstrap(self, *, bootstrap_uid: str, bootstrap_username: str) -> None:
         self.config_store.ensure_default_project()

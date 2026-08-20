@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from deepticket.core.app_factory import create_app
 from deepticket.layers.output.models import StreamChunk
+from deepticket.chat_orchestrator import ChatOrchestrator
 from deepticket.service import DeepTicketService
 from tests.conftest import INGRESS_AUTH_HEADERS
 from tests.test_ingress_api import _wait_for_job
@@ -49,6 +50,8 @@ def _write_test_config(path: Path, *, webhook_url: str) -> None:
     data = yaml.safe_load(example.read_text(encoding="utf-8"))
     data["llm"]["api_key"] = "test-api-key"
     data["ingress"]["api_key"] = "test-ingress-key"
+    data["storage"]["backend"] = "local"
+    data["storage"]["local"]["root"] = str(path.parent / "data")
     for route in data["ingress"]["routes"]:
         if route.get("type") == "ticket":
             route["outbound"]["url"] = webhook_url
@@ -75,7 +78,7 @@ def ingress_client(
         yield StreamChunk(delta="根因：下游依赖超时。", conversation_id="conv-test-1")
 
     monkeypatch.setattr(DeepTicketService, "startup", _noop_startup)
-    monkeypatch.setattr(DeepTicketService, "_run_stream", _fake_stream)
+    monkeypatch.setattr(ChatOrchestrator, "_run_stream", _fake_stream)
 
     with TestClient(create_app()) as test_client:
         yield test_client

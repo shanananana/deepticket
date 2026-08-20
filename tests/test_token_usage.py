@@ -44,21 +44,19 @@ def test_record_run_and_list(store: TokenUsageStore) -> None:
 def test_list_conversation_usage(store: TokenUsageStore) -> None:
     storage = store.storage
     storage.set_json(
-        "chat_threads",
-        "uid1:chat1",
+        "chat_usage",
+        "default:uid1:chat1",
         {
-            "chat_id": "chat1",
             "uid": "uid1",
-            "title": "测试对话",
-            "token_usage": {
-                "prompt_tokens": 500,
-                "completion_tokens": 50,
-                "reasoning_tokens": 10,
-                "total_tokens": 560,
-                "model": "openai/deepseek-v4-flash",
-                "model_label": "DeepSeek V4 Flash",
-                "updated_at": "2026-08-04T12:00:00+00:00",
-            },
+            "chat_id": "chat1",
+            "chat_title": "测试对话",
+            "prompt_tokens": 500,
+            "completion_tokens": 50,
+            "reasoning_tokens": 10,
+            "total_tokens": 560,
+            "model": "openai/deepseek-v4-flash",
+            "model_label": "DeepSeek V4 Flash",
+            "updated_at": "2026-08-04T12:00:00+00:00",
         },
     )
     items = store.list_conversation_usage(resolve_username=lambda uid: "alice")

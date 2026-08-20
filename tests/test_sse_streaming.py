@@ -14,17 +14,17 @@ async def _slow_chunks():
 
 
 @pytest.mark.asyncio
-async def test_sse_emits_ping_on_idle() -> None:
+async def test_sse_emits_idle_activity_on_chunk_gap() -> None:
     events: list[str] = []
 
     async def collect() -> None:
         async for event in iter_sse_chunks(_slow_chunks(), heartbeat_seconds=0.01):
             events.append(event)
-            if event.startswith("event: ping"):
+            if "仍在分析" in event:
                 return
 
     await asyncio.wait_for(collect(), timeout=2.0)
-    assert any(event.startswith("event: ping") for event in events)
+    assert any("仍在分析" in event for event in events)
 
 
 @pytest.mark.asyncio

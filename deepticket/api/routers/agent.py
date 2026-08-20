@@ -22,10 +22,10 @@ async def chat(
     project: ProjectContext = Depends(get_project_context),
 ):
     service = get_service(request)
-    thread = service.chat_history.get_thread(
+    summary = service.chat_history.get_thread_summary(
         project.project_id, user.uid, body.chat_id
     )
-    if thread is None:
+    if summary is None:
         raise HTTPException(status_code=404, detail="聊天不存在")
 
     try:
@@ -33,7 +33,7 @@ async def chat(
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    conversation_id = body.conversation_id or thread.get("agent_conversation_id")
+    conversation_id = body.conversation_id or summary.get("agent_conversation_id")
     try:
         chunks = service.run_chat_stream(
             ChatInput(

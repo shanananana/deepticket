@@ -47,6 +47,26 @@ class OpenHandsEngine:
             f"http://{config.agent_server_host}:{config.agent_server_port}"
         )
         self.gateway_model = f"openhands_{config.llm_profile}"
+        self._settings_cache_key: tuple[str, str, str, str, str] | None = None
+        self._settings_cache_value: dict[str, Any] | None = None
+
+    def _invalidate_settings_cache(self) -> None:
+        self._settings_cache_key = None
+        self._settings_cache_value = None
+
+    def _settings_cache_identity(
+        self,
+        *,
+        mcp_config: dict[str, Any] | None,
+        agents_md: str,
+    ) -> tuple[str, str, str, str, str]:
+        return (
+            json.dumps(mcp_config or {}, sort_keys=True, ensure_ascii=False),
+            (agents_md or "").strip(),
+            self.llm_model,
+            self.llm_api_key,
+            self.llm_base_url,
+        )
 
     def _client(self, timeout: float | None = 60.0) -> httpx.AsyncClient:
         return httpx.AsyncClient(timeout=timeout, trust_env=False)
@@ -120,6 +140,7 @@ class OpenHandsEngine:
 
     async def sync_mcp_config(self, servers: dict[str, dict]) -> None:
         """同步 MCP 到 Agent Server；传空 dict 会清空旧配置。"""
+        self._invalidate_settings_cache()
         body = {"agent_settings_diff": {"mcp_config": servers}}
         async with self._client() as client:
             resp = await client.patch(
@@ -133,6 +154,7 @@ class OpenHandsEngine:
                 )
 
     async def _register_profile(self) -> None:
+        self._invalidate_settings_cache()
         body = {
             "llm": {
                 "model": self.llm_model,
@@ -190,6 +212,28 @@ class OpenHandsEngine:
             agent_context["system_message_suffix"] = merged
             agent_settings["agent_context"] = agent_context
         return agent_settings
+
+    async def _load_agent_settings_cached(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        mcp_config: dict[str, Any] | None = None,
+        agents_md: str = "",
+    ) -> dict[str, Any]:
+        cache_key = self._settings_cache_identity(
+            mcp_config=mcp_config,
+            agents_md=agents_md,
+        )
+        if self._settings_cache_key == cache_key and self._settings_cache_value is not None:
+            return copy.deepcopy(self._settings_cache_value)
+        settings = await self._load_agent_settings(
+            client,
+            mcp_config=mcp_config,
+            agents_md=agents_md,
+        )
+        self._settings_cache_key = cache_key
+        self._settings_cache_value = settings
+        return copy.deepcopy(settings)
 
     async def _start_conversation(
         self,
@@ -377,6 +421,7 @@ class OpenHandsEngine:
             )
             await self._poll_agent_activities(
                 conversation_id,
+                client=None,
                 seen_event_ids=seen_event_ids,
                 out_queue=out_queue,
                 poll_stop=poll_stop,
@@ -387,14 +432,18 @@ class OpenHandsEngine:
         self,
         conversation_id: str,
         *,
+        client: httpx.AsyncClient | None = None,
         seen_event_ids: set[str],
         out_queue: asyncio.Queue[StreamChunk | None],
         poll_stop: asyncio.Event,
         reply_state: ReplyStreamState,
     ) -> None:
-        while not poll_stop.is_set():
-            try:
-                async with self._client(timeout=10.0) as client:
+        owns_client = client is None
+        if client is None:
+            client = self._client(timeout=10.0)
+        try:
+            while not poll_stop.is_set():
+                try:
                     resp = await client.get(
                         f"{self.server}/api/conversations/{conversation_id}/events/search",
                         headers=self._headers(),
@@ -402,19 +451,22 @@ class OpenHandsEngine:
                     )
                     resp.raise_for_status()
                     items = resp.json().get("items", [])
-                for event in items:
-                    await self._push_event(
-                        event,
-                        seen_event_ids=seen_event_ids,
-                        out_queue=out_queue,
-                        reply_state=reply_state,
-                    )
-            except httpx.HTTPError as exc:
-                logger.debug("Agent 活动轮询失败: %s", exc)
-            try:
-                await asyncio.wait_for(poll_stop.wait(), timeout=0.35)
-            except TimeoutError:
-                continue
+                    for event in items:
+                        await self._push_event(
+                            event,
+                            seen_event_ids=seen_event_ids,
+                            out_queue=out_queue,
+                            reply_state=reply_state,
+                        )
+                except httpx.HTTPError as exc:
+                    logger.debug("Agent 活动轮询失败: %s", exc)
+                try:
+                    await asyncio.wait_for(poll_stop.wait(), timeout=0.35)
+                except TimeoutError:
+                    continue
+        finally:
+            if owns_client:
+                await client.aclose()
 
     async def _wait_for_agent_done(
         self,
@@ -573,7 +625,7 @@ class OpenHandsEngine:
                 await out_queue.put(
                     StreamChunk(activity="正在连接 Agent…", activity_kind="system")
                 )
-                agent_settings = await self._load_agent_settings(
+                agent_settings = await self._load_agent_settings_cached(
                     client,
                     mcp_config=agent_input.mcp_config,
                     agents_md=agent_input.agents_md,

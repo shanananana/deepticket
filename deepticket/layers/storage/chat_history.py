@@ -203,9 +203,8 @@ class ChatHistoryStore:
         self.storage.hset(_NS_CHAT, self._chat_key(project_id, uid, chat_id), chat_update)
         self.storage.zadd(_NS_CHATS, self._chats_key(project_id, uid), {chat_id: score})
 
-        return self.get_thread(project_id, uid, chat_id) or self._thread_from_meta(
-            {**meta, **chat_update}, [message]
-        )
+        merged_meta = {**meta, **chat_update}
+        return self._thread_from_meta(merged_meta, [message])
 
     def rename_thread(
         self, project_id: str, uid: str, chat_id: str, title: str

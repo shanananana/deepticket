@@ -1,10 +1,11 @@
 import { renderMarkdown } from "/static/markdown.js?v=16";
+import { App, TOKEN_KEY, PROJECT_KEY, RECORD_MODE_KEY, hideAdminPanels, updateAdminNavActive } from "./app-shared.js";
+import { openDashboard, wireAdminToken } from "./admin-token.js";
+import { openLlmAdmin, wireAdminLlm } from "./admin-llm.js";
+import { openProjectAdmin, wireAdminProjects } from "./admin-projects.js";
 
 const ASSET_VERSION = "13";
 const MASCOT_ICON = "/static/mascot-icon.png";
-const TOKEN_KEY = "deepticket_token";
-const PROJECT_KEY = "deepticket_project_id";
-const RECORD_MODE_KEY = "deepticket_record_mode";
 
 const ACTIVITY_ICONS = {
   log: "📋",
@@ -39,82 +40,6 @@ const ICONS = {
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
 };
-
-/** agents.md 默认模板：选择后填入下方编辑框，用户可再改（与 deepticket/config/agents_defaults.py 保持一致） */
-const AGENTS_MD_TEMPLATES = [
-  {
-    id: "",
-    label: "不注入（空）",
-    content: "",
-  },
-  {
-    id: "standard",
-    label: "DeepTicket 标准（推荐）",
-    content: `你是 DeepTicket 项目助手，帮助同事排查故障、走读代码、分析业务指标与工单分流。
-
-基本原则：
-- 以 workspace 内的代码、日志、配置与文档为依据，引用具体路径与行号
-- 先复述问题与影响面，再给出结论；不确定处明确标注「待验证」
-- 默认只读：不修改代码、不执行写盘或对外发网的命令
-- 不臆造配置、指标、日志或代码；没有证据时说明缺什么信息
-
-回复结构（可按场景裁剪）：
-1. 摘要 — 现象与影响
-2. 分析 — 根因假设与证据
-3. 建议 — 排查步骤或可执行动作
-
-可用能力：
-- 检索已同步的 Git 知识库与工作区文件
-- 调用已挂载的 MCP 与 Skill（如 log-query、config-query）
-- 需要权限或环境时，说明 blocker 而非强行猜测`,
-  },
-  {
-    id: "sre",
-    label: "SRE 故障排查",
-    content: `你是本项目的 SRE 助手，负责故障定位与根因分析。
-
-工作方式：
-- 优先只读检索 workspace 知识库与代码，引用具体文件路径和日志行
-- 先复述现象，再给出 1～3 个最可能根因，并说明证据
-- 给出可执行的排查步骤与修复建议；不确定处明确标注
-- 不要臆造不存在的配置、指标或代码；不要运行破坏性命令`,
-  },
-  {
-    id: "code_qa",
-    label: "代码走读 / Q&A",
-    content: `你是本项目的代码分析助手。
-
-工作方式：
-- 基于 workspace 内代码与文档回答，引用文件路径
-- 解释调用链、数据流与关键配置；对比改动影响
-- 只读分析，不修改代码，不执行可能写盘或发网的命令
-- 回答简洁，先结论后依据`,
-  },
-  {
-    id: "business",
-    label: "业务指标分析",
-    content: `你是本项目的业务分析助手，擅长从日志、配置与指标中找异常原因。
-
-工作方式：
-- 对比时间窗口前后的关键指标（如 ROI、转化率、预算、曝光）
-- 结合 campaign / 配置变更日志，给出归因与证据
-- 只读查 workspace 中的 .log、yaml、csv 等；不要生成假数据
-- 输出：现象摘要 → 根因假设 → 证据 → 建议动作`,
-  },
-  {
-    id: "ticket",
-    label: "工单分流",
-    content: `你是工单 triage 助手。
-
-工作方式：
-- 从标题、描述、日志中提取：影响面、紧急度、可能模块
-- 建议路由（研发 / SRE / 业务）与下一步动作
-- 需要查代码或配置时，只读检索 workspace
-- 回复结构：摘要 / 严重级别 / 建议处理人 / 待办清单`,
-  },
-];
-
-const AGENTS_MD_CUSTOM_TEMPLATE_ID = "_custom";
 
 /* DOM 引用 */
 const $ = (id) => document.getElementById(id);
@@ -223,6 +148,51 @@ let currentProjectId = localStorage.getItem(PROJECT_KEY) || "default";
 let adminProjectYamlDefaults = null;
 let recordMode = localStorage.getItem(RECORD_MODE_KEY) === "1";
 let pendingAttachments = [];
+
+function syncAppState() {
+  App.authToken = authToken;
+  App.currentProjectId = currentProjectId;
+  App.isAdmin = isAdmin;
+  App.llmConfigured = llmConfigured;
+  App.adminViewMode = adminViewMode;
+  App.currentChatId = currentChatId;
+}
+
+function adminDom() {
+  return {
+    adminDashboard,
+    adminProjectPanel,
+    adminLlmPanel,
+    messagesEl,
+    composerZone,
+    chatTitleEl,
+    conversationIdEl,
+    adminBoardBtn,
+    adminProjectsBtn,
+    adminLlmBtn,
+    closeSidebarMobile,
+  };
+}
+
+function closeAdminView({ restoreChat = true } = {}) {
+  adminViewMode = null;
+  App.adminViewMode = null;
+  hideAdminPanels(adminDom());
+  if (dashboardPollTimer) {
+    window.clearInterval(dashboardPollTimer);
+    dashboardPollTimer = null;
+    App.dashboardPollTimer = null;
+  }
+  messagesEl.classList.remove("hidden");
+  if (composerZone) composerZone.classList.remove("hidden");
+  updateAdminNavActive(adminDom());
+  if (!restoreChat) return;
+  if (currentChatId) {
+    openChat(currentChatId).catch(() => clearChatPanel());
+  } else {
+    clearChatPanel();
+  }
+}
 
 function projectQuery(extra = "") {
   const join = extra.includes("?") ? "&" : "?";
@@ -1106,8 +1076,10 @@ async function createChat() {
  * ------------------------------------------------------------------------ */
 
 async function pollChatForReply(chatId, baselineCount, { maxAttempts = 15 } = {}) {
+  let delayMs = 1000;
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    await new Promise((resolve) => window.setTimeout(resolve, 2000));
+    await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    delayMs = Math.min(Math.round(delayMs * 1.4), 8000);
     const statusResp = await apiFetch(projectQuery(`/api/chats/${chatId}/status`));
     const statusData = await statusResp.json();
     if (!statusResp.ok) continue;
@@ -1115,9 +1087,7 @@ async function pollChatForReply(chatId, baselineCount, { maxAttempts = 15 } = {}
     const latest = status.latest_message;
     const messageCount = Number(status.message_count || 0);
     if (status.agent_run_status === "failed") {
-      const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
-  const data = await resp.json();
-      return { chat: data.chat || {}, message: null };
+      return { chat: null, message: latest || null, failed: true };
     }
     if (messageCount > baselineCount && latest?.role === "assistant" && latest.content) {
       const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
@@ -1129,7 +1099,7 @@ async function pollChatForReply(chatId, baselineCount, { maxAttempts = 15 } = {}
       if (last?.role === "assistant" && last.content) return { chat, message: last };
       return { chat, message: latest };
     }
-    if (status.agent_run_status === "idle" && messageCount > baselineCount) {
+    if (status.agent_run_status === "idle" && messageCount > baselineCount && latest?.role === "assistant") {
       const resp = await apiFetch(projectQuery(`/api/chats/${chatId}`));
       const data = await resp.json();
       if (!resp.ok) continue;
@@ -1209,10 +1179,10 @@ async function sendMessage(text) {
   const imageUrls = currentImageUrls();
   let baselineCount = 0;
   try {
-    const baselineResp = await apiFetch(projectQuery(`/api/chats/${currentChatId}`));
+    const baselineResp = await apiFetch(projectQuery(`/api/chats/${currentChatId}/status`));
     const baselineData = await baselineResp.json();
     if (baselineResp.ok) {
-      baselineCount = (baselineData.chat?.messages || []).length;
+      baselineCount = Number(baselineData.status?.message_count || 0);
     }
   } catch {
     baselineCount = 0;
@@ -1473,467 +1443,7 @@ async function loadMe() {
   document.querySelector(".user-role").textContent = isAdmin ? "管理员" : "分析工作台";
   if (syncKnowledgeBtn) syncKnowledgeBtn.classList.toggle("hidden", !isAdmin);
   if (reloadSkillsBtn) reloadSkillsBtn.classList.toggle("hidden", !isAdmin);
-}
-
-function formatToken(n) {
-  const value = Number(n) || 0;
-  return value.toLocaleString("zh-CN");
-}
-
-function formatTime(value) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return escapeHtml(String(value));
-  return date.toLocaleString("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatModel(item) {
-  return escapeHtml(item.model_label || item.model || "—");
-}
-
-function renderTokenUsage(data) {
-  const summary = data.summary || {};
-  tokenSummary.innerHTML = `
-    <article class="metric-card"><span class="metric-label">Prompt</span><strong>${formatToken(summary.prompt_tokens)}</strong><span class="metric-sub">累计输入</span></article>
-    <article class="metric-card"><span class="metric-label">Completion</span><strong>${formatToken(summary.completion_tokens)}</strong><span class="metric-sub">累计输出</span></article>
-    <article class="metric-card"><span class="metric-label">Reasoning</span><strong>${formatToken(summary.reasoning_tokens)}</strong><span class="metric-sub">推理 token</span></article>
-    <article class="metric-card"><span class="metric-label">Total</span><strong>${formatToken(summary.total_tokens)}</strong><span class="metric-sub">${summary.conversation_count || 0} 个对话</span></article>
-  `;
-
-  const conversations = data.conversations || [];
-  if (!conversations.length) {
-    tokenConversations.innerHTML = '<div class="dashboard-empty">暂无 token 记录，用户发起 Agent 对话后会自动采集</div>';
-  } else {
-    tokenConversations.innerHTML = `<table class="dashboard-table"><thead><tr><th>用户</th><th>对话</th><th>模型</th><th>Prompt</th><th>Completion</th><th>Reasoning</th><th>Total</th><th>更新时间</th></tr></thead><tbody>${conversations.map((item) => `<tr><td>${escapeHtml(item.username || "—")}</td><td><span class="token-chat-title">${escapeHtml(item.chat_title || "新会话")}</span><code>${escapeHtml(item.chat_id || "")}</code></td><td><span class="token-model-label">${formatModel(item)}</span><code>${escapeHtml(item.model || "")}</code></td><td>${formatToken(item.prompt_tokens)}</td><td>${formatToken(item.completion_tokens)}</td><td>${formatToken(item.reasoning_tokens)}</td><td><strong>${formatToken(item.total_tokens)}</strong></td><td>${formatTime(item.updated_at)}</td></tr>`).join("")}</tbody></table>`;
-  }
-
-  const runs = data.runs || [];
-  if (!runs.length) {
-    tokenRuns.innerHTML = '<div class="dashboard-empty">暂无单次运行记录</div>';
-  } else {
-    tokenRuns.innerHTML = `<table class="dashboard-table"><thead><tr><th>时间</th><th>用户</th><th>对话</th><th>模型</th><th>本次 Prompt</th><th>本次 Completion</th><th>本次 Reasoning</th><th>本次 Total</th></tr></thead><tbody>${runs.map((item) => `<tr><td>${formatTime(item.recorded_at)}</td><td>${escapeHtml(item.username || "—")}</td><td><span class="token-chat-title">${escapeHtml(item.chat_title || "新会话")}</span><code>${escapeHtml(item.chat_id || "")}</code></td><td><span class="token-model-label">${formatModel(item)}</span><code>${escapeHtml(item.model || "")}</code></td><td>${formatToken(item.prompt_tokens)}</td><td>${formatToken(item.completion_tokens)}</td><td>${formatToken(item.reasoning_tokens)}</td><td><strong>${formatToken(item.total_tokens)}</strong></td></tr>`).join("")}</tbody></table>`;
-  }
-}
-
-async function loadDashboard() {
-  const resp = await apiFetch("/api/admin/token-usage");
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data.detail || "加载 Token 消耗失败");
-  renderTokenUsage(data);
-}
-
-function hideAdminPanels() {
-  adminDashboard?.classList.add("hidden");
-  adminProjectPanel?.classList.add("hidden");
-  adminLlmPanel?.classList.add("hidden");
-  if (dashboardPollTimer) {
-    window.clearInterval(dashboardPollTimer);
-    dashboardPollTimer = null;
-  }
-}
-
-function enterAdminChrome(title, subtitle) {
-  messagesEl.classList.add("hidden");
-  if (composerZone) composerZone.classList.add("hidden");
-  chatTitleEl.textContent = title;
-  conversationIdEl.textContent = subtitle;
-  closeSidebarMobile();
-}
-
-function updateAdminNavActive() {
-  adminBoardBtn?.classList.toggle("active", adminViewMode === "token");
-  adminProjectsBtn?.classList.toggle("active", adminViewMode === "projects");
-  adminLlmBtn?.classList.toggle("active", adminViewMode === "llm");
-}
-
-async function loadAdminLlmConfig() {
-  const resp = await apiFetch("/api/admin/llm");
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data.detail || "加载 LLM 配置失败");
-  if (llmModelInput) llmModelInput.value = data.model || "";
-  if (llmBaseUrlInput) llmBaseUrlInput.value = data.base_url || "";
-  if (llmLabelInput) llmLabelInput.value = data.label || "";
-  if (llmApiKeyInput) llmApiKeyInput.value = "";
-  if (llmConfigPath) llmConfigPath.textContent = data.config_path || "—";
-  if (llmConfigStatus) {
-    llmConfigStatus.textContent = data.configured
-      ? `已配置（${data.api_key_hint || "密钥已保存"}）`
-      : "尚未配置 API Key，保存后即可使用 Agent。";
-  }
-  return data;
-}
-
-async function saveLlmConfig() {
-  const apiKey = llmApiKeyInput?.value?.trim() || "";
-  if (!apiKey) {
-    toast("请填写 API Key", "error");
-    return;
-  }
-  const body = {
-    api_key: apiKey,
-    model: llmModelInput?.value?.trim() || "openai/deepseek-v4-flash",
-    base_url: llmBaseUrlInput?.value?.trim() || "https://api.deepseek.com/v1",
-    label: llmLabelInput?.value?.trim() || "DeepSeek V4 Flash",
-  };
-  const resp = await apiFetch("/api/admin/llm", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data.detail || "保存 LLM 配置失败");
-  llmConfigured = true;
-  if (llmApiKeyInput) llmApiKeyInput.value = "";
-  if (llmConfigStatus) {
-    llmConfigStatus.textContent = `已配置（${data.api_key_hint || "密钥已保存"}）`;
-  }
-  await loadHealth();
-  toast("LLM 配置已保存", "success");
-}
-
-function openLlmAdmin() {
-  if (!isAdmin) return;
-  adminViewMode = "llm";
-  hideAdminPanels();
-  adminLlmPanel?.classList.remove("hidden");
-  enterAdminChrome("LLM 配置", "管理员 · LLM");
-  updateAdminNavActive();
-  loadAdminLlmConfig().catch((err) => toast(err.message, "error"));
-}
-
-function openProjectAdmin() {
-  if (!isAdmin) return;
-  adminViewMode = "projects";
-  hideAdminPanels();
-  adminProjectPanel?.classList.remove("hidden");
-  toggleCreateProjectPanel(false);
-  enterAdminChrome("项目配置", "管理员 · 项目");
-  updateAdminNavActive();
-  ensureAgentsMdTemplateOptions();
-  loadAdminProjectList().catch((err) => toast(err.message, "error"));
-}
-
-function ensureAgentsMdTemplateOptions() {
-  if (!projectAgentsTemplate || projectAgentsTemplate.dataset.ready === "1") return;
-  const options = AGENTS_MD_TEMPLATES.map(
-    (item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`,
-  );
-  options.push(
-    `<option value="${AGENTS_MD_CUSTOM_TEMPLATE_ID}">自定义（保留当前内容）</option>`,
-  );
-  projectAgentsTemplate.innerHTML = options.join("");
-  projectAgentsTemplate.dataset.ready = "1";
-}
-
-function agentsMdTemplateContent(templateId) {
-  const item = AGENTS_MD_TEMPLATES.find((entry) => entry.id === templateId);
-  return item ? item.content : null;
-}
-
-function matchAgentsMdTemplateId(content) {
-  const normalized = (content || "").trim();
-  for (const item of AGENTS_MD_TEMPLATES) {
-    if ((item.content || "").trim() === normalized) {
-      return item.id;
-    }
-  }
-  return AGENTS_MD_CUSTOM_TEMPLATE_ID;
-}
-
-function syncAgentsMdTemplateSelect(content) {
-  if (!projectAgentsTemplate) return;
-  projectAgentsTemplate.value = matchAgentsMdTemplateId(content);
-}
-
-function applyAgentsMdTemplate(templateId) {
-  if (templateId === AGENTS_MD_CUSTOM_TEMPLATE_ID) return;
-  const content = agentsMdTemplateContent(templateId);
-  if (content !== null && projectAgentsEditor) {
-    projectAgentsEditor.value = content;
-  }
-}
-
-async function loadAdminProjectList() {
-  const resp = await apiFetch("/api/admin/projects");
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data.detail || "加载项目配置失败");
-  const projects = data.projects || [];
-  if (projectConfigSelect) {
-    projectConfigSelect.innerHTML = projects
-      .map(
-        (item) =>
-          `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} (${escapeHtml(item.id)})</option>`,
-      )
-      .join("");
-  }
-  ensureAgentsMdTemplateOptions();
-  const selected = projectConfigSelect?.value || currentProjectId || "default";
-  await loadAdminProjectConfig(selected);
-}
-
-async function loadAdminProjectConfig(projectId) {
-  const resp = await apiFetch(`/api/admin/projects/${encodeURIComponent(projectId)}`);
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data.detail || "读取项目配置失败");
-  const project = data.project || {};
-  const defaults = data.defaults || {};
-  adminProjectYamlDefaults = defaults;
-  if (projectConfigHint) {
-    const source = data.in_redis ? "Redis + yaml 兜底" : "仅 yaml 兜底（尚未写入 Redis）";
-    projectConfigHint.textContent = `当前生效：${source}。编辑框显示当前生效值；点「载入 yaml 默认」可单独填入 deepticket.yaml 兜底，改完再保存。`;
-  }
-  if (projectMetaName) projectMetaName.value = project.name || "";
-  if (projectMetaDescription) projectMetaDescription.value = project.description || "";
-  if (projectMetaEnabled) projectMetaEnabled.checked = project.enabled !== false;
-  if (projectReposEditor) {
-    projectReposEditor.value = JSON.stringify(project.knowledge?.repos ?? [], null, 2);
-  }
-  if (projectMcpEditor) {
-    projectMcpEditor.value = JSON.stringify(project.mcp?.servers ?? {}, null, 2);
-  }
-  if (projectAgentsEditor) {
-    const savedAgentsMd = project.extensions?.agents_md ?? "";
-    projectAgentsEditor.value = savedAgentsMd;
-    syncAgentsMdTemplateSelect(savedAgentsMd);
-  }
-  renderProjectMembers(data.members || []);
-}
-
-function renderProjectMembers(members) {
-  if (!projectMembersTags || !projectMembersEditor) return;
-  const list = Array.isArray(members) ? members : [];
-  if (!list.length) {
-    projectMembersTags.classList.add("empty");
-    projectMembersTags.innerHTML = "";
-  } else {
-    projectMembersTags.classList.remove("empty");
-    projectMembersTags.innerHTML = list
-      .map((item) => `<span class="project-member-tag">${escapeHtml(item.username || item.uid)}</span>`)
-      .join("");
-  }
-  projectMembersEditor.value = list.map((item) => item.username).filter(Boolean).join("\n");
-}
-
-function normalizeProjectId(raw) {
-  return (raw || "").trim().toLowerCase();
-}
-
-function isValidProjectId(projectId) {
-  return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(projectId);
-}
-
-function toggleCreateProjectPanel(show) {
-  if (!projectCreatePanel) return;
-  projectCreatePanel.classList.toggle("hidden", !show);
-  if (show) {
-    if (newProjectId) newProjectId.value = "";
-    if (newProjectName) newProjectName.value = "";
-    if (newProjectDescription) newProjectDescription.value = "";
-    newProjectId?.focus();
-  }
-}
-
-async function createProject() {
-  const projectId = normalizeProjectId(newProjectId?.value);
-  const name = (newProjectName?.value || "").trim();
-  const description = (newProjectDescription?.value || "").trim();
-  if (!isValidProjectId(projectId)) {
-    toast("项目 ID 需 1–64 位，小写字母/数字开头，仅含 a-z 0-9 _ -", "error");
-    return;
-  }
-  if (!name) {
-    toast("请填写项目名称", "error");
-    return;
-  }
-  const resp = await apiFetch(`/api/admin/projects/${encodeURIComponent(projectId)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      id: projectId,
-      name,
-      description,
-      enabled: true,
-      knowledge: { repos: [] },
-      mcp: { servers: {} },
-      extensions: { agents_md: "", user_skills_dir: "" },
-    }),
-  });
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data.detail || "创建项目失败");
-  toast(`项目 ${name} 已创建`, "success");
-  toggleCreateProjectPanel(false);
-  await loadProjects();
-  if (projectConfigSelect) projectConfigSelect.value = projectId;
-  await loadAdminProjectList();
-}
-
-async function saveProjectMembers() {
-  const projectId = currentProjectConfigId();
-  const usernames = (projectMembersEditor?.value || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const resp = await apiFetch(`/api/admin/projects/${encodeURIComponent(projectId)}/members`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ usernames }),
-  });
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data.detail || "保存成员失败");
-  toast("成员已保存", "success");
-  renderProjectMembers(data.members || []);
-  await loadProjects();
-}
-
-function loadYamlDefaultMeta() {
-  const defaults = adminProjectYamlDefaults;
-  if (!defaults) {
-    toast("请先选择项目并加载配置", "error");
-    return;
-  }
-  if (projectMetaName) projectMetaName.value = defaults.name || "";
-  if (projectMetaDescription) projectMetaDescription.value = defaults.description || "";
-  if (projectMetaEnabled) projectMetaEnabled.checked = defaults.enabled !== false;
-  toast("已载入 yaml 默认（基本信息），请修改后保存", "success");
-}
-
-function loadYamlDefaultRepos() {
-  const defaults = adminProjectYamlDefaults;
-  if (!defaults || !projectReposEditor) {
-    toast("请先选择项目并加载配置", "error");
-    return;
-  }
-  projectReposEditor.value = JSON.stringify(defaults.knowledge?.repos ?? [], null, 2);
-  toast("已载入 yaml 默认（Repos），请修改后保存", "success");
-}
-
-function loadYamlDefaultMcp() {
-  const defaults = adminProjectYamlDefaults;
-  if (!defaults || !projectMcpEditor) {
-    toast("请先选择项目并加载配置", "error");
-    return;
-  }
-  projectMcpEditor.value = JSON.stringify(defaults.mcp?.servers ?? {}, null, 2);
-  toast("已载入 yaml 默认（MCP），请修改后保存", "success");
-}
-
-function loadYamlDefaultAgents() {
-  const defaults = adminProjectYamlDefaults;
-  if (!defaults || !projectAgentsEditor) {
-    toast("请先选择项目并加载配置", "error");
-    return;
-  }
-  const content = defaults.extensions?.agents_md ?? "";
-  projectAgentsEditor.value = content;
-  syncAgentsMdTemplateSelect(content);
-  toast("已载入 yaml 默认（agents.md），请修改后保存", "success");
-}
-
-function currentProjectConfigId() {
-  return projectConfigSelect?.value || currentProjectId || "default";
-}
-
-async function patchProjectSection(path, body, label) {
-  const projectId = currentProjectConfigId();
-  const resp = await apiFetch(`/api/admin/projects/${encodeURIComponent(projectId)}${path}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data.detail || `${label}保存失败`);
-  toast(`${label}已保存到 Redis`, "success");
-  await loadProjects();
-  await loadHealth();
-  await loadAdminProjectConfig(projectId);
-}
-
-async function saveProjectMeta() {
-  await patchProjectSection(
-    "",
-    {
-      name: projectMetaName?.value?.trim() || undefined,
-      description: projectMetaDescription?.value?.trim() ?? "",
-      enabled: projectMetaEnabled?.checked ?? true,
-    },
-    "基本信息",
-  );
-}
-
-async function saveProjectRepos() {
-  let repos;
-  try {
-    repos = JSON.parse(projectReposEditor?.value || "[]");
-  } catch {
-    toast("Repos JSON 格式无效", "error");
-    return;
-  }
-  if (!Array.isArray(repos)) {
-    toast("Repos 必须是数组", "error");
-    return;
-  }
-  await patchProjectSection("/knowledge", { repos }, "知识库");
-}
-
-async function saveProjectMcp() {
-  let servers;
-  try {
-    servers = JSON.parse(projectMcpEditor?.value || "{}");
-  } catch {
-    toast("MCP JSON 格式无效", "error");
-    return;
-  }
-  if (typeof servers !== "object" || servers === null || Array.isArray(servers)) {
-    toast("MCP servers 必须是对象", "error");
-    return;
-  }
-  await patchProjectSection(
-    "/mcp",
-    { servers },
-    "MCP",
-  );
-}
-
-async function saveProjectAgentsMd() {
-  await patchProjectSection(
-    "/extensions",
-    {
-      agents_md: projectAgentsEditor?.value ?? "",
-    },
-    "agents.md",
-  );
-}
-
-function openDashboard() {
-  if (!isAdmin) return;
-  adminViewMode = "token";
-  hideAdminPanels();
-  adminDashboard.classList.remove("hidden");
-  enterAdminChrome("Token 消耗", "管理员 · Token");
-  updateAdminNavActive();
-  loadDashboard().catch((err) => toast(err.message, "error"));
-  dashboardPollTimer = window.setInterval(() => {
-    loadDashboard().catch(() => {});
-  }, 30000);
-}
-
-function closeAdminView({ restoreChat = true } = {}) {
-  adminViewMode = null;
-  hideAdminPanels();
-  messagesEl.classList.remove("hidden");
-  if (composerZone) composerZone.classList.remove("hidden");
-  updateAdminNavActive();
-  if (!restoreChat) return;
-  if (currentChatId) {
-    openChat(currentChatId).catch(() => clearChatPanel());
-  } else {
-    clearChatPanel();
-  }
+  syncAppState();
 }
 
 async function loadHealth() {
@@ -2003,9 +1513,30 @@ scrim.addEventListener("click", closeSidebarMobile);
 
 searchInput.addEventListener("input", renderChatList);
 
-if (adminBoardBtn) {
-  adminBoardBtn.addEventListener("click", openDashboard);
-}
+const currentProjectIdRef = {
+  get current() {
+    return currentProjectId;
+  },
+  set current(value) {
+    currentProjectId = value;
+    App.currentProjectId = value;
+  },
+};
+
+wireAdminToken({
+  onRestoreChat: () => closeAdminView(),
+});
+wireAdminLlm({
+  onClose: () => closeAdminView(),
+  onHealth: loadHealth,
+});
+wireAdminProjects({
+  onClose: () => closeAdminView(),
+  loadProjects,
+  loadHealth,
+  currentProjectIdRef,
+});
+
 if (projectSelectEl) {
   projectSelectEl.addEventListener("change", async () => {
     try {
@@ -2013,108 +1544,6 @@ if (projectSelectEl) {
     } catch (err) {
       toast(err.message, "error");
     }
-  });
-}
-if (adminProjectsBtn) {
-  adminProjectsBtn.addEventListener("click", () => {
-    openProjectAdmin();
-  });
-}
-if (adminLlmBtn) {
-  adminLlmBtn.addEventListener("click", () => openLlmAdmin());
-}
-if (saveLlmConfigBtn) {
-  saveLlmConfigBtn.addEventListener("click", () => {
-    saveLlmConfig().catch((err) => toast(err.message, "error"));
-  });
-}
-if (closeLlmAdminBtn) {
-  closeLlmAdminBtn.addEventListener("click", () => closeAdminView());
-}
-if (createProjectBtn) {
-  createProjectBtn.addEventListener("click", () => toggleCreateProjectPanel(true));
-}
-if (cancelCreateProjectBtn) {
-  cancelCreateProjectBtn.addEventListener("click", () => toggleCreateProjectPanel(false));
-}
-if (submitCreateProjectBtn) {
-  submitCreateProjectBtn.addEventListener("click", () => {
-    createProject().catch((err) => toast(err.message, "error"));
-  });
-}
-if (saveProjectMembersBtn) {
-  saveProjectMembersBtn.addEventListener("click", () => {
-    saveProjectMembers().catch((err) => toast(err.message, "error"));
-  });
-}
-if (projectConfigSelect) {
-  projectConfigSelect.addEventListener("change", () => {
-    loadAdminProjectConfig(projectConfigSelect.value).catch((err) => toast(err.message, "error"));
-  });
-}
-if (loadProjectMetaDefaultBtn) {
-  loadProjectMetaDefaultBtn.addEventListener("click", loadYamlDefaultMeta);
-}
-if (loadProjectReposDefaultBtn) {
-  loadProjectReposDefaultBtn.addEventListener("click", loadYamlDefaultRepos);
-}
-if (loadProjectMcpDefaultBtn) {
-  loadProjectMcpDefaultBtn.addEventListener("click", loadYamlDefaultMcp);
-}
-if (loadProjectAgentsDefaultBtn) {
-  loadProjectAgentsDefaultBtn.addEventListener("click", loadYamlDefaultAgents);
-}
-if (saveProjectMetaBtn) {
-  saveProjectMetaBtn.addEventListener("click", () => {
-    saveProjectMeta().catch((err) => toast(err.message, "error"));
-  });
-}
-if (saveProjectReposBtn) {
-  saveProjectReposBtn.addEventListener("click", () => {
-    saveProjectRepos().catch((err) => toast(err.message, "error"));
-  });
-}
-if (saveProjectMcpBtn) {
-  saveProjectMcpBtn.addEventListener("click", () => {
-    saveProjectMcp().catch((err) => toast(err.message, "error"));
-  });
-}
-if (saveProjectAgentsBtn) {
-  saveProjectAgentsBtn.addEventListener("click", () => {
-    saveProjectAgentsMd().catch((err) => toast(err.message, "error"));
-  });
-}
-if (projectAgentsTemplate) {
-  projectAgentsTemplate.addEventListener("change", () => {
-    applyAgentsMdTemplate(projectAgentsTemplate.value);
-  });
-}
-if (projectAgentsEditor && projectAgentsTemplate) {
-  projectAgentsEditor.addEventListener("input", () => {
-    const selected = projectAgentsTemplate.value;
-    if (selected === AGENTS_MD_CUSTOM_TEMPLATE_ID) return;
-    const templateContent = agentsMdTemplateContent(selected);
-    if ((projectAgentsEditor.value || "").trim() !== (templateContent || "").trim()) {
-      projectAgentsTemplate.value = AGENTS_MD_CUSTOM_TEMPLATE_ID;
-    }
-  });
-}
-if (reloadProjectConfigBtn) {
-  reloadProjectConfigBtn.addEventListener("click", () => {
-    loadAdminProjectConfig(projectConfigSelect?.value || currentProjectId).catch((err) =>
-      toast(err.message, "error"),
-    );
-  });
-}
-if (closeDashboardBtn) {
-  closeDashboardBtn.addEventListener("click", () => closeAdminView());
-}
-if (closeProjectAdminBtn) {
-  closeProjectAdminBtn.addEventListener("click", () => closeAdminView());
-}
-if (refreshDashboardBtn) {
-  refreshDashboardBtn.addEventListener("click", () => {
-    loadDashboard().then(() => toast("已刷新", "success")).catch((err) => toast(err.message, "error"));
   });
 }
 
