@@ -37,7 +37,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def load_app_config_from_env() -> AppConfig:
-    storage_backend = _env("STORAGE_BACKEND", "local")
+    storage_backend = _env("STORAGE_BACKEND", "redis")
     if storage_backend not in ("local", "redis"):
         raise ValueError(f"STORAGE_BACKEND 无效: {storage_backend}")
 

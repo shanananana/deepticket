@@ -7,7 +7,7 @@
   ·
   <a href="CHANGELOG.en.md">Changelog</a>
   ·
-  <a href="https://github.com/shanananana/deepticket/releases/tag/v0.3.1">v0.3.1</a>
+  <a href="https://github.com/shanananana/deepticket/releases/tag/v0.3.3">v0.3.3</a>
   ·
   <a href="LICENSE">MIT</a>
 </p>
@@ -19,33 +19,39 @@
   <img src="https://img.shields.io/badge/docker-GHCR-2496ED" alt="Docker">
 </p>
 
-<h3 align="center">Self-hosted Agent orchestration for business teams</h3>
+<h1 align="center">DeepTicket</h1>
 
-<p align="center"><strong>Let frontline staff find evidence before escalating to engineering</strong></p>
+<p align="center"><strong>An AI triage workbench that connects to your internal systems.</strong></p>
 
-<p align="center">Runs on OpenHands · Git / logs / config / MCP · tickets &amp; alerts · not a company Copilot replacement</p>
+<p align="center"><strong>Start from a ticket, pull code, logs, and config together, and finish the first round of investigation.</strong></p>
+
+<p align="center">It routes events from internal systems into an Agent, wires project source, logs, config, and internal tools into one analysis, then writes evidence-backed conclusions back to the source system.</p>
 
 <p align="center">
-  <a href="#overview"><strong>Overview</strong></a>
+  <a href="#what-it-is"><strong>What it is</strong></a>
   ·
   <a href="#demo"><strong>Demo</strong></a>
   ·
-  <a href="#features"><strong>Features</strong></a>
+  <a href="#core-capabilities"><strong>Core capabilities</strong></a>
   ·
-  <a href="#use-cases"><strong>Use cases</strong></a>
+  <a href="#get-started-in-5-minutes"><strong>Get started</strong></a>
   ·
-  <a href="#quick-start"><strong>Quick start</strong></a>
+  <a href="#architecture"><strong>Architecture</strong></a>
   ·
   <a href="#docs"><strong>Docs</strong></a>
 </p>
 
 ---
 
-## Overview
+## What it is
 
-DeepTicket is a **team-owned Agent orchestration layer**: Git knowledge, internal logs and config, MCP tools, and ticket/alert hooks in one workbench, with multi-turn investigation on OpenHands.
+DeepTicket is a **self-hosted AI ticket triage and Agent orchestration platform** deployed in your own environment.
 
-The goal is not “chat more”—it is **evidence before close or escalate**: source paths, log lines, config keys—not just retrieved doc chunks. Engineering keeps Copilot; business teams usually pilot with Docker on their own infra.
+It exposes a unified HTTP Ingress API and configurable Webhooks: internal ticketing, alerting, monitoring, or custom systems can integrate using a common event format as long as they can send or receive HTTP requests. DeepTicket provides generic integration capabilities—it does not ship vendor-specific adapters out of the box.
+
+Tickets routed into DeepTicket are mapped to the right Git repos, log-query Skills, config-center MCPs, and other internal tools per project. After OpenHands completes multi-turn analysis, DeepTicket can write summaries, evidence, impact, root-cause hypotheses, and recommendations back via Webhook—or store results only without callback.
+
+In one line: **DeepTicket turns internal tickets from “someone re-describes the problem” into “automated first-pass triage with full project context.”**
 
 ---
 
@@ -54,164 +60,187 @@ The goal is not “chat more”—it is **evidence before close or escalate**: s
 <p align="center">
   <video src="https://github.com/user-attachments/assets/3bc7b913-f3a9-49c5-bbe7-1c15f1a0381b" width="720" controls autoplay muted loop playsinline></video>
 </p>
-<p align="center"><sub>ad-agent ROI demo · logs / config / code · ~55s</sub></p>
+<p align="center"><sub>ad-agent ROI attribution demo · log lookup and similar capabilities require real Skill / MCP wiring · some UI is enhanced for demo and may differ from your deployment</sub></p>
 
 ---
 
-## Features
+## Why DeepTicket
 
-<h3>Connect</h3>
+Many issues do not need engineering immediately—but they also cannot be closed with “please check the logs.”
 
-<ul>
-<li><strong>Multi-project</strong> — sidebar switch; per-project repos, MCP, agents.md</li>
-<li><strong>Ingress</strong> — tickets/alerts over HTTP, async analysis in the background</li>
-<li><strong>Per-project MCP</strong> — config lookup, release history, internal docs—scoped per team</li>
-</ul>
+DeepTicket puts everything needed for analysis in one workbench: project source, runtime logs, config, internal tools, and the original ticket. Support, ops, product, and engineering can collaborate on the same context. The Agent reads facts first, then explains cause, impact, and suggested next steps.
 
-<h3>Investigate</h3>
+> **From “ask an AI” to “complete an investigation.”**
+>
+> The goal is not longer chat—it is conclusions backed by evidence.
 
-<ul>
-<li><strong>Git sync</strong> — code in workspace; the agent can read source</li>
-<li><strong>Logs / config</strong> — Skill templates or MCP wired to your platforms</li>
-<li><strong>Evidence in replies</strong> — paths, snippets, keys; agents.md enforces read-only and cite-first</li>
-</ul>
+### Who it is for
 
-<h3>Deliver</h3>
+- Teams that want business units to deploy and wire internal data themselves
+- Teams that need product, ops, QA, or on-call to run a first factual check before escalation
+- Teams that already have Git, log platforms, config centers, or ITSM but lack a unified Agent entry point
 
-<ul>
-<li><strong>Webhook write-back</strong> — conclusions to ticket/ITSM; target is per-project</li>
-<li><strong>Human in the loop</strong> — close if it checks out; escalate with context if not</li>
-<li><strong>yaml + sidebar</strong> — versioned config or runtime edits</li>
-</ul>
+### What it is not
+
+DeepTicket is not a replacement for company-wide Copilot, nor a pure RAG stack that ingests all docs into a vector store. It is a **project-scoped triage and write-back orchestration layer**: hook real tools, bound by project, and make the Agent work against verifiable context.
 
 ---
 
-## Highlight
+## Core capabilities
 
-<h3>Evidence first, not empty chat</h3>
+### 01 · Connect real context
 
-<p>DeepTicket pushes the agent to search the workspace before concluding—not generic advice. Project <code>agents.md</code> sets read-only rules, paths, and “say when unsure.”</p>
+- **Git knowledge sync**: sync one or more repos into the Agent workspace; source, docs, and config searchable together
+- **Logs and config lookup**: built-in Skill templates or MCP to existing platforms—no data pipeline rewrite required
+- **Multi-project isolation**: per-project repos, MCP, Skills, <code>agents.md</code>, and membership
 
-<blockquote>
-<p>Frontline needs “can I close this?” Engineering needs “escalation with context.” DeepTicket sits in between.</p>
-</blockquote>
+### 02 · Ground conclusions in evidence
 
----
+- **Evidence first**: answers cite source paths, log snippets, config keys, and related files
+- **Scoped access**: Git and internal systems use read-only tokens; <code>agents.md</code> adds analysis rules, citation, and uncertainty handling
+- **Visible process**: workbench shows Agent steps, streaming replies, confidence, and chat history
+- **Say when unsure**: missing evidence is stated explicitly—not filled with generic advice
 
-## vs pure RAG / company Copilot
+### 03 · From ingress to write-back
 
-<p>Pick your category: ingested Q&amp;A, company-wide Copilot, or a team-owned layer that hooks internal systems and writes back to tickets.</p>
+- **Ingress**: HTTP API / Webhook for any internal ticket, ITSM, alert, or custom system
+- **Async analysis**: background queue runs Agent jobs; callers need not hold a connection
+- **Webhook write-back**: push conclusions to the source ticket system, or store only
+- **Human in the loop**: machine gathers facts; people judge cause, impact, and action
 
-| | Pure RAG | Platform Copilot | DeepTicket |
-|--|:--:|:--:|:--:|
-| Read Git source | Chunks | Limited | ✅ |
-| Internal logs / config | Ingest | Coarse | ✅ MCP / Skills |
-| Ticket / alert write-back | ❌ | Weak | ✅ Ingress |
-| Team self-host | Varies | Wait on platform | ✅ Docker / yaml |
+### 04 · Easy to pilot, easy to govern
 
-<p><strong>vs OpenHands:</strong> OpenHands runs the agent engine; DeepTicket is the workbench, Git sync, and ticket ingress.</p>
-
----
-
-## Use cases
-
-<h3>Product, ops, QA</h3>
-
-<p>Wire logs and config, add a few MCP tools, give accounts to non-engineers. Typical questions: bug or not? matches spec? prod vs doc?</p>
-
-<p>Replies cite log lines, config keys, and code paths—close yourself or ping engineering with context.</p>
-
-<h3>Reports and metrics</h3>
-
-<p>With a reporting/BI MCP, ask cross-sheet questions (e.g. campaign ROI vs daily report). Let the machine run joins first; you decide what to trust.</p>
-
-<p>Vertical example: <a href="https://github.com/shanananana/ad_agent">ad_agent</a> (ad ROI). DeepTicket is the wiring and multi-project shell.</p>
-
-<h3>Tickets and alerts</h3>
-
-<p>HTTP from your ticket or alert system, async analysis, conclusion out via Webhook. On-call reads the draft, then escalates or not.</p>
+- **Docker one-liner**: Web, OpenHands Agent Server, and Redis via Compose
+- **YAML + admin sidebar**: versioned config and runtime admin edits
+- **Token and run observability**: Agent usage, run status, Ingress queue, Webhook success/failure
+- **Self-hosted**: data, model config, and project wiring stay in your environment
 
 ---
 
-## Quick start
+## How an investigation runs
 
-<p align="center">Open <strong>http://127.0.0.1:8600</strong> · default <code>admin / admin</code> · set LLM in sidebar <strong>LLM settings</strong></p>
+~~~text
+Ticket / alert / user question
+          ↓
+       Ingress
+          ↓
+Route by project: Git + logs + config + MCP / Skill
+          ↓
+OpenHands Agent multi-turn analysis
+          ↓
+Evidence-backed output: summary · hypothesis · impact · recommendations
+          ↓
+Workbench review / human confirm / Webhook write-back
+~~~
 
-<table>
-<tr>
-<td width="50%" valign="top">
+### vs pure RAG and company Copilot
 
-<details open>
-<summary><strong>🐳 Docker (remote image, recommended)</strong></summary>
+| Capability | Pure RAG | Company Copilot | DeepTicket |
+|---|:---:|:---:|:---:|
+| Read project source | Doc chunks | Varies | ✅ Git workspace |
+| Internal logs / config | Ingest first | Often coarse | ✅ MCP / Skill |
+| Multi-project isolation | Limited | Central platform | ✅ Per-project config |
+| Ingest tickets / alerts | ❌ | Varies | ✅ HTTP API / Webhook |
+| Write back to source system | ❌ | Varies | ✅ Webhook |
+| Business team self-host | Varies | Usually no | ✅ Docker / YAML |
 
-<pre><code>mkdir deepticket &amp;&amp; cd deepticket
+**Relationship to OpenHands:** OpenHands runs the Agent; DeepTicket provides the workbench, project config, knowledge sync, Ingress, and write-back.
+
+---
+
+## Typical scenarios
+
+### Product / ops / QA: is this a bug?
+
+After wiring logs and config, support, ops, and product can ask directly:
+
+> “Does this behavior match the requirement?”
+>
+> “Why does prod config differ from the doc?”
+>
+> “Data issue, config issue, or code issue?”
+
+Answers include logs, config keys, and code locations so teams can decide next steps together.
+
+### On-call and alerts: triage before paging
+
+Any HTTP-capable ticket or alert system can push events. DeepTicket correlates the project, reads code and config, summarizes impact, and writes back via Webhook. On-call gets a reviewable draft—not an isolated error line.
+
+### Reports and metrics: cross-system reasoning
+
+With a reporting or BI MCP, analyze mismatches between campaign ROI, daily reports, and delivery logs. Vertical example: [ad_agent](https://github.com/shanananana/ad_agent); DeepTicket handles isolation, tooling, and orchestration—not a fixed domain.
+
+---
+
+## Get started in 5 minutes
+
+### Option 1: Pre-built image (recommended)
+
+Prerequisites: Docker Desktop or Docker Engine + Compose v2.
+
+~~~bash
+mkdir deepticket && cd deepticket
 curl -LO https://raw.githubusercontent.com/shanananana/deepticket/main/docker-compose.image.yml
 curl -LO https://raw.githubusercontent.com/shanananana/deepticket/main/.env.docker.example
 cp .env.docker.example .env
 docker compose -f docker-compose.image.yml up -d
-</code></pre>
+~~~
 
-<p><code>ghcr.io/shanananana/deepticket:v0.3.1</code> · see <a href="docs/docker.md">docs/docker.md</a></p>
+Open **http://127.0.0.1:8600** and sign in with <code>admin / admin</code>. Set your LLM key in <code>.env</code> before start, or in the sidebar **LLM settings** after login.
 
-</details>
+> ⚠️ Default credentials are for local trial only. Change password, auth, and persistence before internal or production deployment.
 
-</td>
-<td width="50%" valign="top">
+### Option 2: Clone and run (development)
 
-<details>
-<summary><strong>📦 Clone (development)</strong></summary>
-
-<pre><code>git clone https://github.com/shanananana/deepticket.git
+~~~bash
+git clone https://github.com/shanananana/deepticket.git
 cd deepticket
 bash scripts/setup.sh
 bash scripts/start_all.sh
-</code></pre>
+~~~
 
-<p>Try the Nginx log in <a href="docs/DEMO_PROMPT.md">DEMO_PROMPT.md</a> · ROI demo <a href="docs/quickstart-demo.md">quickstart-demo</a></p>
+Copy the Nginx log prompt from [DEMO_PROMPT.md](docs/DEMO_PROMPT.md) for a first chat; for the full “logs → config / code → ROI” flow see [Quick start & ROI demo](docs/quickstart-demo.md).
 
-</details>
+Common commands:
 
-</td>
-</tr>
-</table>
-
-<p align="center"><sub>Stop: <code>docker compose down</code> · Logs: <code>docker compose logs -f deepticket</code> · Verify: <code>bash scripts/verify.sh</code></sub></p>
+~~~bash
+docker compose logs -f deepticket  # tail logs
+docker compose down                 # stop
+bash scripts/verify.sh              # local self-check
+~~~
 
 ---
 
 ## Architecture
 
 <p align="center">
-  <a href="docs/assets/architecture.svg"><img src="docs/assets/architecture.png" width="640" alt="Five-layer architecture"></a>
+  <a href="docs/assets/architecture.svg"><img src="docs/assets/architecture.png" width="720" alt="DeepTicket five-layer architecture"></a>
 </p>
+
+DeepTicket is split into input, knowledge, engine, output, and storage layers: input handles chat and Ingress; knowledge handles Git / Skill / MCP; OpenHands runs analysis; output handles streaming UI and Webhook write-back; storage holds chats, project config, and run records.
 
 ---
 
 ## Docs
 
-| Doc | Description |
-|-----|-------------|
-| [docs/docker.md](docs/docker.md) | Docker deploy, GHCR image, persisted config |
-| [docs/DEMO_PROMPT.md](docs/DEMO_PROMPT.md) | Copy-paste sample prompts (Nginx logs, etc.) |
-| [docs/quickstart-demo.md](docs/quickstart-demo.md) | Recorded demo and ROI walkthrough |
-| [deepticket.example.yaml](deepticket.example.yaml) | Config template (copy to deepticket.yaml) |
+| Doc | When to read |
+|---|---|
+| [docs/docker.md](docs/docker.md) | Docker deploy, GHCR image, volumes, internal pilot |
+| [docs/quickstart-demo.md](docs/quickstart-demo.md) | Demo and ROI walkthrough from scratch |
+| [docs/DEMO_PROMPT.md](docs/DEMO_PROMPT.md) | Copy-paste Nginx / ROI sample prompts |
+| [deepticket.example.yaml](deepticket.example.yaml) | Full config and integration examples |
+| [deepticket/skills/README.md](deepticket/skills/README.md) | Authoring and mounting project Skills |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Local dev, tests, contributing |
-| [CHANGELOG.en.md](CHANGELOG.en.md) | Release notes |
+| [CHANGELOG.en.md](CHANGELOG.en.md) | Release notes and known limits |
 
-<p>Multi-project, MCP, Ingress, and agents.md: sidebar in the workbench or admin API <code>/api/admin/projects/{id}</code></p>
-
----
-
-## FAQ
-
-<p><strong>Minimum setup?</strong> LLM key; Git repos optional; log/config MCP when needed.</p>
-
-<p><strong>vs company Copilot?</strong> Coexists—usually a small team-owned deploy.</p>
-
-<p><strong>Stage?</strong> Alpha (v0.3.1)—Stars and Issues welcome.</p>
-
-<p>Local dev: <code>pip install -e ".[dev]"</code> · <code>pytest -q</code> · <code>bash scripts/verify.sh --online</code></p>
+Multi-project, MCP, Ingress, and <code>agents.md</code> are configurable in the workbench sidebar or via admin API <code>/api/admin/projects/{id}</code>.
 
 ---
 
-<p align="center"><sub>⭐ <a href="https://github.com/shanananana/deepticket">Star</a> if useful · <a href="LICENSE">MIT</a></sub></p>
+## Current status
+
+DeepTicket is in **Alpha (v0.3.3)**. Core flows cover project management, Git knowledge base, Skill / MCP, OpenHands Agent, workbench chat, Ingress async analysis, Webhook write-back, and run observability.
+
+If this direction helps you, please [Star](https://github.com/shanananana/deepticket), open an [Issue](https://github.com/shanananana/deepticket/issues), or share your integration story.
+
+<p align="center"><sub>DeepTicket · Evidence before escalation · MIT License</sub></p>

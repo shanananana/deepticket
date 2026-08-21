@@ -10,6 +10,28 @@
 
 ---
 
+## [0.3.3] - 2026-08-21
+
+### Added
+
+- **用户可见 Token 用量**：`/usage` 页面、`GET /api/usage/summary`、`GET /api/usage/runs`；侧栏「我的用量」；会话列表与标题区展示 token
+- **续聊上下文同步**：从 Redis 读取历史，在 OpenHands 与 Redis 不一致时注入 `<conversation_history>` 并重建会话（`conversation_history.py`）
+- **开发自检**：`scripts/verify_continue_chat.py` 最小 token 连续对话验证
+
+### Changed
+
+- **默认存储后端改为 Redis**（`schema.py`、`env_loader.py`、`start_all.sh` / `start_server.sh`）；本地 `./data` 需显式 `STORAGE_BACKEND=local`
+- **README** 产品介绍结构重写（中英文对齐）
+
+### Fixed
+
+- **老对话丢上下文**：修复 OpenHands `events/search` 与 `llm_message` 解析；避免 `kind=MessageEvent` 空会话 500 污染 HTTP 连接
+- **SSE idle 文案**「仍在分析…」误入 Thinking 步骤（`streaming.py`、`app.js`）
+- **Admin 面板叠层**：`hideAdminPanels` 仅隐藏传入 DOM 导致多面板同时展开（`app-shared.js`）
+- **docker-compose**：Redis 端口绑定 `127.0.0.1:6379:6379`
+
+---
+
 ## [0.3.2] - 2026-08-21
 
 ### Changed
@@ -177,9 +199,10 @@
 
 - [English Changelog](CHANGELOG.en.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased 对比 v0.3.2](https://github.com/shanananana/deepticket/compare/v0.3.2...HEAD)
+- [Unreleased 对比 v0.3.3](https://github.com/shanananana/deepticket/compare/v0.3.3...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/shanananana/deepticket/releases/tag/v0.3.3
 [0.3.2]: https://github.com/shanananana/deepticket/releases/tag/v0.3.2
 [0.3.1]: https://github.com/shanananana/deepticket/releases/tag/v0.3.1
 [0.3.0]: https://github.com/shanananana/deepticket/releases/tag/v0.3.0

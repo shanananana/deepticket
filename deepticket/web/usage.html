@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>我的用量 · DeepTicket</title>
+  <link rel="icon" href="/static/mascot-icon-128.png" />
+  <link rel="stylesheet" href="/static/style.css?v=32" />
+</head>
+<body>
+  <div class="aurora"></div>
+  <div class="grain"></div>
+
+  <div class="usage-shell">
+    <header class="usage-topbar">
+      <div class="usage-topbar-left">
+        <a href="/app" class="btn secondary usage-back-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>
+          <span>返回工作台</span>
+        </a>
+        <div>
+          <h1 class="usage-title">我的 Token 用量</h1>
+          <p class="usage-sub" id="usageUserLabel">—</p>
+        </div>
+      </div>
+      <button id="refreshUsageBtn" type="button" class="btn secondary">刷新</button>
+    </header>
+
+    <main class="usage-main admin-dashboard">
+      <div id="usageSummary" class="dashboard-metrics"></div>
+      <section class="dashboard-card">
+        <h3>按会话累计</h3>
+        <div id="usageConversations" class="dashboard-table-wrap"></div>
+      </section>
+      <section class="dashboard-card token-runs-card">
+        <h3>最近 Agent 运行</h3>
+        <div id="usageRuns" class="dashboard-table-wrap"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastStack" class="toast-stack"></div>
+  <script type="module" src="/static/usage.js?v=1"></script>
+</body>
+</html>

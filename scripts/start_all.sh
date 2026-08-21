@@ -15,7 +15,7 @@ export_config_from_yaml "$ROOT"
 source scripts/lib/env.sh
 normalize_session_api_env
 
-if [[ "${STORAGE_BACKEND:-local}" == "redis" ]]; then
+if [[ "${STORAGE_BACKEND:-redis}" == "redis" ]]; then
   _redis_url="${REDIS_URL:-redis://127.0.0.1:6379/0}"
   _start_docker="${REDIS_START_DOCKER:-auto}"
   _should_start=0

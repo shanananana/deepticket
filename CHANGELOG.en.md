@@ -10,6 +10,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.3.3] - 2026-08-21
+
+### Added
+
+- **User-visible token usage**: `/usage` page, `GET /api/usage/summary`, `GET /api/usage/runs`; sidebar “My usage”; token counts in chat list and header
+- **Continue-chat context sync**: load history from Redis; inject `<conversation_history>` and rebuild OpenHands session when Redis and OH diverge (`conversation_history.py`)
+- **Dev self-check**: `scripts/verify_continue_chat.py` minimal-token continue-chat verification
+
+### Changed
+
+- **Default storage backend is Redis** (`schema.py`, `env_loader.py`, `start_all.sh` / `start_server.sh`); use `STORAGE_BACKEND=local` explicitly for `./data`
+- **README** product narrative restructure (Chinese and English aligned)
+
+### Fixed
+
+- **Lost context on old chats**: fix OpenHands `events/search` and `llm_message` parsing; avoid empty-conversation 500 on `kind=MessageEvent` poisoning HTTP connections
+- **SSE idle** “仍在分析…” leaking into Thinking steps (`streaming.py`, `app.js`)
+- **Admin panel stacking**: `hideAdminPanels` only hid panels in the passed DOM subset (`app-shared.js`)
+- **docker-compose**: Redis port bind `127.0.0.1:6379:6379`
+
+---
+
 ## [0.3.2] - 2026-08-21
 
 ### Changed
@@ -177,9 +199,10 @@ First public **Alpha** release.
 
 - [中文更新日志](CHANGELOG.md)
 - [GitHub Releases](https://github.com/shanananana/deepticket/releases)
-- [Unreleased vs v0.3.2](https://github.com/shanananana/deepticket/compare/v0.3.2...HEAD)
+- [Unreleased vs v0.3.3](https://github.com/shanananana/deepticket/compare/v0.3.3...HEAD)
 
-[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/shanananana/deepticket/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/shanananana/deepticket/releases/tag/v0.3.3
 [0.3.2]: https://github.com/shanananana/deepticket/releases/tag/v0.3.2
 [0.3.1]: https://github.com/shanananana/deepticket/releases/tag/v0.3.1
 [0.3.0]: https://github.com/shanananana/deepticket/releases/tag/v0.3.0

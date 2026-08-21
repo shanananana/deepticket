@@ -102,6 +102,42 @@ def test_admin_token_usage_forbidden_for_non_admin(client: TestClient):
     assert resp.status_code == 403
 
 
+def test_user_usage_summary(client: TestClient):
+    username = f"pytest_{uuid.uuid4().hex[:8]}"
+    password = "pytest-pass-123"
+    client.post("/api/auth/register", json={"username": username, "password": password})
+    token = client.post(
+        "/api/auth/login", json={"username": username, "password": password}
+    ).json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = client.get("/api/usage/summary", headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["user"]["username"] == username
+    assert "summary" in body
+    assert "conversations" in body
+    assert "prompt_tokens" in body["summary"]
+
+
+def test_user_usage_runs(client: TestClient):
+    username = f"pytest_{uuid.uuid4().hex[:8]}"
+    password = "pytest-pass-123"
+    client.post("/api/auth/register", json={"username": username, "password": password})
+    token = client.post(
+        "/api/auth/login", json={"username": username, "password": password}
+    ).json()["token"]
+    resp = client.get("/api/usage/runs?limit=5", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["user"]["username"] == username
+    assert isinstance(body["runs"], list)
+
+
+def test_user_usage_requires_auth(client: TestClient):
+    assert client.get("/api/usage/summary").status_code == 401
+    assert client.get("/api/usage/runs").status_code == 401
+
+
 def test_auth_register_login_flow(client: TestClient):
     username = f"pytest_{uuid.uuid4().hex[:8]}"
     password = "pytest-pass-123"

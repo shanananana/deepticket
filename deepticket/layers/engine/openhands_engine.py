@@ -14,6 +14,11 @@ import httpx
 import websockets
 
 from deepticket.config.schema import EngineConfig
+from deepticket.layers.engine.conversation_history import (
+    extract_message_text,
+    format_history_prompt,
+    history_is_synced,
+)
 from deepticket.layers.engine.stream_reply import ReplyStreamState, consume_stream_content
 from deepticket.layers.input.models import AgentInput
 from deepticket.layers.output.activity import format_agent_activity
@@ -271,6 +276,134 @@ class OpenHandsEngine:
             raise RuntimeError("Agent Server 未返回 conversation_id")
         return str(conversation_id)
 
+    async def _create_conversation_shell(
+        self,
+        client: httpx.AsyncClient,
+        agent_settings: dict[str, Any],
+        *,
+        workspace_dir: str | None = None,
+        conversation_id: str | None = None,
+    ) -> str:
+        working_dir = workspace_dir or self.workspace_dir
+        body: dict[str, Any] = {
+            "workspace": {"working_dir": working_dir},
+            "agent_settings": agent_settings,
+            "autotitle": False,
+        }
+        if conversation_id:
+            body["conversation_id"] = conversation_id
+        resp = await client.post(
+            f"{self.server}/api/conversations",
+            headers=self._headers(),
+            json=body,
+        )
+        if resp.status_code >= 400:
+            raise RuntimeError(
+                f"创建对话容器失败: {resp.status_code} {resp.text}"
+            )
+        data = resp.json()
+        conv_id = data.get("id") or data.get("conversation_id")
+        if not conv_id:
+            raise RuntimeError("Agent Server 未返回 conversation_id")
+        return str(conv_id)
+
+    async def _list_conversation_messages(
+        self,
+        client: httpx.AsyncClient,
+        conversation_id: str,
+    ) -> list[tuple[str, str]]:
+        # 勿用 kind=MessageEvent 过滤：空会话会 500，且部分版本过滤结果为空。
+        list_client = self._client(timeout=30.0)
+        try:
+            resp = await list_client.get(
+                f"{self.server}/api/conversations/{conversation_id}/events/search",
+                headers=self._headers(),
+                params={
+                    "limit": 200,
+                    "sort_order": "TIMESTAMP",
+                },
+            )
+        finally:
+            await list_client.aclose()
+        if resp.status_code >= 400:
+            logger.warning(
+                "读取 OpenHands 消息失败: conversation=%s status=%s",
+                conversation_id,
+                resp.status_code,
+            )
+            return []
+        messages: list[tuple[str, str]] = []
+        for event in resp.json().get("items", []):
+            if event.get("kind") != "MessageEvent":
+                continue
+            source = str(event.get("source") or "")
+            if source == "user":
+                role = "user"
+            elif source == "agent":
+                role = "assistant"
+            else:
+                continue
+            llm_message = event.get("llm_message") or {}
+            text = extract_message_text(llm_message.get("content"))
+            if text:
+                messages.append((role, text))
+        return messages
+
+    async def _post_conversation_message(
+        self,
+        client: httpx.AsyncClient,
+        conversation_id: str,
+        *,
+        content: str,
+        run: bool,
+        image_urls: list[str] | None = None,
+    ) -> None:
+        body: dict[str, Any] = {
+            "role": "user",
+            "content": [{"type": "text", "text": content}],
+            "run": run,
+        }
+        for url in image_urls or []:
+            body["content"].append({"type": "image", "image_urls": [url]})
+        resp = await client.post(
+            f"{self.server}/api/conversations/{conversation_id}/events",
+            headers=self._headers(),
+            json=body,
+        )
+        if resp.status_code >= 400:
+            raise RuntimeError(
+                f"写入对话消息失败: {resp.status_code} {resp.text}"
+            )
+
+    async def _bootstrap_conversation_with_history(
+        self,
+        client: httpx.AsyncClient,
+        agent_input: AgentInput,
+        agent_settings: dict[str, Any],
+        history: list[dict[str, str]],
+        *,
+        workspace_dir: str | None = None,
+    ) -> str:
+        conv_id = await self._create_conversation_shell(
+            client,
+            agent_settings,
+            workspace_dir=workspace_dir,
+        )
+        prompt = format_history_prompt(history, agent_input.prompt)
+        await self._post_conversation_message(
+            client,
+            conv_id,
+            content=prompt,
+            run=True,
+            image_urls=agent_input.image_urls,
+        )
+        logger.info(
+            "已用 Redis 历史重建 OpenHands 对话: conversation=%s history_turns=%d",
+            conv_id,
+            len(history),
+        )
+        return conv_id
+
     async def _send_message(
         self,
         client: httpx.AsyncClient,
@@ -300,20 +433,54 @@ class OpenHandsEngine:
         *,
         workspace_dir: str | None = None,
     ) -> tuple[str, str | None]:
-        if agent_input.conversation_id:
+        history = list(agent_input.history_messages or [])
+        stored_id = agent_input.conversation_id
+
+        if stored_id:
             probe = await client.get(
-                f"{self.server}/api/conversations/{agent_input.conversation_id}",
+                f"{self.server}/api/conversations/{stored_id}",
                 headers=self._headers(),
             )
             if probe.status_code == 200:
-                baseline = probe.json().get("leaf_event_id")
-                await self._send_message(
-                    client, agent_input.conversation_id, agent_input
+                if history:
+                    openhands_messages = await self._list_conversation_messages(
+                        client, stored_id
+                    )
+                    if history_is_synced(openhands_messages, history):
+                        baseline = probe.json().get("leaf_event_id")
+                        await self._send_message(client, stored_id, agent_input)
+                        return (
+                            stored_id,
+                            str(baseline) if baseline else None,
+                        )
+                    logger.warning(
+                        "OpenHands 历史与 Redis 不一致，将注入 Redis 上下文后重建: id=%s",
+                        stored_id,
+                    )
+                else:
+                    baseline = probe.json().get("leaf_event_id")
+                    await self._send_message(client, stored_id, agent_input)
+                    return (
+                        stored_id,
+                        str(baseline) if baseline else None,
+                    )
+            else:
+                logger.warning(
+                    "OpenHands conversation 不可用，将重建: id=%s status=%s",
+                    stored_id,
+                    probe.status_code,
                 )
-                return (
-                    agent_input.conversation_id,
-                    str(baseline) if baseline else None,
-                )
+
+        if history:
+            conv_id = await self._bootstrap_conversation_with_history(
+                client,
+                agent_input,
+                agent_settings,
+                history,
+                workspace_dir=workspace_dir,
+            )
+            return conv_id, None
+
         conversation_id = await self._start_conversation(
             client,
             agent_input,

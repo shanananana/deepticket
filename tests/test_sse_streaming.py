@@ -24,7 +24,7 @@ async def test_sse_emits_idle_activity_on_chunk_gap() -> None:
                 return
 
     await asyncio.wait_for(collect(), timeout=2.0)
-    assert any("仍在分析" in event for event in events)
+    assert any(": heartbeat" in event for event in events)
 
 
 @pytest.mark.asyncio

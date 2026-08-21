@@ -242,6 +242,16 @@ class DeepTicketService:
             "runs": runs,
         }
 
+    def list_user_token_summary(self, uid: str) -> dict:
+        conversations = self.token_usage.list_user_conversation_usage(uid)
+        return {
+            "summary": self.token_usage.summarize_conversations(conversations),
+            "conversations": conversations,
+        }
+
+    def list_user_token_runs(self, uid: str, *, limit: int = 20) -> list[dict]:
+        return self.token_usage.list_user_runs(uid, limit=limit)
+
     async def record_chat_token_usage(
         self,
         *,

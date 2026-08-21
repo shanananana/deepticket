@@ -84,9 +84,9 @@ export function formatModel(item) {
 }
 
 export function hideAdminPanels(dom) {
-  dom.adminDashboard?.classList.add("hidden");
-  dom.adminProjectPanel?.classList.add("hidden");
-  dom.adminLlmPanel?.classList.add("hidden");
+  document.getElementById("adminDashboard")?.classList.add("hidden");
+  document.getElementById("adminProjectPanel")?.classList.add("hidden");
+  document.getElementById("adminLlmPanel")?.classList.add("hidden");
   if (App.dashboardPollTimer) {
     window.clearInterval(App.dashboardPollTimer);
     App.dashboardPollTimer = null;

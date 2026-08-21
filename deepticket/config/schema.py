@@ -114,8 +114,8 @@ class StorageConfig(BaseModel):
     """业务数据持久化：账号、对话、Ingress 任务、工单元数据。"""
 
     backend: Literal["local", "redis"] = Field(
-        default="local",
-        description="存储后端：local 写 ./data；redis 写 Redis（推荐）",
+        default="redis",
+        description="存储后端：local 写 ./data；redis 写 Redis（推荐，默认）",
     )
     local: LocalStorageConfig = Field(default_factory=LocalStorageConfig)
     redis: RedisStorageConfig = Field(default_factory=RedisStorageConfig)

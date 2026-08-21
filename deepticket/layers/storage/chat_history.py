@@ -43,14 +43,23 @@ class ChatHistoryStore:
                 continue
             if meta.get("project_id") and meta.get("project_id") != project_id:
                 continue
-            items.append(
-                {
+            item: dict[str, Any] = {
                     "chat_id": chat_id,
                     "title": meta.get("title") or "新会话",
                     "updated_at": meta.get("updated_at") or "",
                     "search_text": meta.get("search_text") or "",
                 }
-            )
+            if meta.get("token_updated_at") or meta.get("total_tokens"):
+                item["token_usage"] = {
+                    "prompt_tokens": int(meta.get("prompt_tokens") or 0),
+                    "completion_tokens": int(meta.get("completion_tokens") or 0),
+                    "reasoning_tokens": int(meta.get("reasoning_tokens") or 0),
+                    "total_tokens": int(meta.get("total_tokens") or 0),
+                    "model": meta.get("model") or "",
+                    "model_label": meta.get("model_label") or "",
+                    "updated_at": meta.get("token_updated_at") or meta.get("updated_at"),
+                }
+            items.append(item)
         return items
 
     def get_thread(

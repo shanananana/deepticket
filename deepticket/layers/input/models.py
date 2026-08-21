@@ -37,3 +37,4 @@ class AgentInput:
     workspace_dir: str | None = None
     mcp_config: dict[str, Any] | None = None
     agents_md: str = ""
+    history_messages: list[dict[str, str]] = field(default_factory=list)

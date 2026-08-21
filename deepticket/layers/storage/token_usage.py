@@ -65,6 +65,47 @@ class TokenUsageStore:
                 runs.append(doc)
         return runs
 
+    def list_user_runs(self, uid: str, *, limit: int = 20) -> list[dict[str, Any]]:
+        runs: list[dict[str, Any]] = []
+        scan_limit = max(limit * 10, 100)
+        for key in list_indexed_json_keys(
+            self.storage, _NS_RUNS, limit=scan_limit, sort_field="recorded_at"
+        ):
+            doc = self.storage.get_json(_NS_RUNS, key)
+            if not doc or str(doc.get("uid") or "") != uid:
+                continue
+            runs.append(doc)
+            if len(runs) >= limit:
+                break
+        return runs
+
+    def list_user_conversation_usage(self, uid: str) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        for key in self.storage.list_keys(_NS_CHAT_USAGE):
+            doc = self.storage.get_json(_NS_CHAT_USAGE, key)
+            if not doc or str(doc.get("uid") or "") != uid:
+                continue
+            if int(doc.get("total_tokens") or 0) <= 0:
+                continue
+            items.append(
+                {
+                    "project_id": doc.get("project_id") or "default",
+                    "uid": uid,
+                    "chat_id": doc.get("chat_id", ""),
+                    "chat_title": doc.get("chat_title") or "新会话",
+                    "agent_conversation_id": doc.get("agent_conversation_id") or None,
+                    "model": doc.get("model") or "",
+                    "model_label": doc.get("model_label") or doc.get("model") or "",
+                    "prompt_tokens": int(doc.get("prompt_tokens") or 0),
+                    "completion_tokens": int(doc.get("completion_tokens") or 0),
+                    "reasoning_tokens": int(doc.get("reasoning_tokens") or 0),
+                    "total_tokens": int(doc.get("total_tokens") or 0),
+                    "updated_at": doc.get("updated_at"),
+                }
+            )
+        items.sort(key=lambda item: item.get("updated_at") or "", reverse=True)
+        return items
+
     def list_conversation_usage(
         self,
         *,

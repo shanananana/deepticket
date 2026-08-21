@@ -1,5 +1,5 @@
 import { renderMarkdown } from "/static/markdown.js?v=16";
-import { App, TOKEN_KEY, PROJECT_KEY, RECORD_MODE_KEY, hideAdminPanels, updateAdminNavActive } from "./app-shared.js";
+import { App, TOKEN_KEY, PROJECT_KEY, RECORD_MODE_KEY, hideAdminPanels, updateAdminNavActive, formatToken } from "./app-shared.js";
 import { openDashboard, wireAdminToken } from "./admin-token.js";
 import { openLlmAdmin, wireAdminLlm } from "./admin-llm.js";
 import { openProjectAdmin, wireAdminProjects } from "./admin-projects.js";
@@ -351,9 +351,16 @@ function scrollToBottom() {
 }
 
 function updateConversationMeta() {
-  conversationIdEl.textContent = agentConversationId
-    ? `Agent · ${agentConversationId.slice(0, 12)}…`
-    : "";
+  const chat = allChats.find((c) => c.chat_id === currentChatId);
+  const tokenTotal = chat?.token_usage?.total_tokens;
+  const parts = [];
+  if (agentConversationId) {
+    parts.push(`Agent · ${agentConversationId.slice(0, 12)}…`);
+  }
+  if (tokenTotal) {
+    parts.push(`${formatToken(tokenTotal)} tokens`);
+  }
+  conversationIdEl.textContent = parts.join(" · ");
 }
 
 function autoResizePrompt() {
@@ -926,8 +933,13 @@ function renderChatList() {
     const time = document.createElement("span");
     time.className = "chat-item-time";
     time.textContent = timeAgo(chat.updated_at);
+    const tokens = document.createElement("span");
+    tokens.className = "chat-item-tokens";
+    const tokenTotal = chat.token_usage?.total_tokens;
+    tokens.textContent = tokenTotal ? `${formatToken(tokenTotal)} tokens` : "";
     body.appendChild(title);
     body.appendChild(time);
+    if (tokenTotal) body.appendChild(tokens);
 
     const actions = document.createElement("div");
     actions.className = "chat-item-actions";
@@ -1044,6 +1056,14 @@ async function openChat(chatId) {
   currentChatId = data.chat.chat_id;
   agentConversationId = data.chat.agent_conversation_id || null;
   chatTitleEl.textContent = data.chat.title || "新会话";
+  const chatIdx = allChats.findIndex((c) => c.chat_id === chatId);
+  if (chatIdx >= 0) {
+    allChats[chatIdx] = {
+      ...allChats[chatIdx],
+      title: data.chat.title || allChats[chatIdx].title,
+      token_usage: data.chat.token_usage || allChats[chatIdx].token_usage,
+    };
+  }
   renderHistory(data.chat.messages || []);
   updateConversationMeta();
   setComposerEnabled(true);
@@ -1297,6 +1317,9 @@ async function sendMessage(text) {
               const meta = JSON.parse(line.slice(6));
               if (meta.activity) {
                 const kind = meta.kind || "default";
+                if (kind === "system" && meta.activity === "仍在分析…") {
+                  continue;
+                }
                 chatActivities.push({ text: meta.activity, kind });
                 thinking.addActivity(meta.activity, kind);
                 if (kind === "error") setStatus("Agent 异常", "error");

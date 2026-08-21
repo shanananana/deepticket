@@ -33,6 +33,31 @@ class ChatOrchestrator:
     def __init__(self, service: DeepTicketService) -> None:
         self._service = service
 
+    @staticmethod
+    def _history_from_thread(
+        thread: dict | None,
+        *,
+        current_user_message: str,
+    ) -> list[dict[str, str]]:
+        """从 Redis 会话消息构建 OpenHands 回放历史（不含本轮待发送 user 消息）。"""
+        if not thread:
+            return []
+        history: list[dict[str, str]] = []
+        for msg in thread.get("messages") or []:
+            role = str(msg.get("role") or "")
+            content = str(msg.get("content") or "").strip()
+            if role not in ("user", "assistant") or not content:
+                continue
+            history.append({"role": role, "content": content})
+        if not history:
+            return []
+        last = history[-1]
+        current = " ".join(current_user_message.split())
+        last_norm = " ".join(last["content"].split())
+        if last["role"] == "user" and last_norm == current:
+            history = history[:-1]
+        return history
+
     def apply_project_runtime(
         self, agent_input: AgentInput, project: ProjectContext
     ) -> None:
@@ -87,6 +112,14 @@ class ChatOrchestrator:
             role="user",
             content=payload.message.strip(),
             image_urls=stored_image_urls or None,
+        )
+
+        full_thread = self._service.chat_history.get_thread(
+            project.project_id, uid, chat_id
+        )
+        agent_input.history_messages = self._history_from_thread(
+            full_thread,
+            current_user_message=payload.message.strip(),
         )
 
         run = await self._service.chat_runs.start(

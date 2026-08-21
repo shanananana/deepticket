@@ -20,6 +20,7 @@ from deepticket.api.routers import (
     projects,
     system,
     uploads,
+    usage,
 )
 from deepticket.core.bootstrap import (
     build_service,
@@ -88,6 +89,7 @@ def create_app() -> FastAPI:
     app.include_router(ingress.router)
     app.include_router(system.router)
     app.include_router(uploads.router)
+    app.include_router(usage.router)
 
     @app.get("/", include_in_schema=False)
     async def login_page() -> FileResponse:
@@ -96,6 +98,10 @@ def create_app() -> FastAPI:
     @app.get("/app", include_in_schema=False)
     async def app_page() -> FileResponse:
         return FileResponse(WEB_DIR / "app.html")
+
+    @app.get("/usage", include_in_schema=False)
+    async def usage_page() -> FileResponse:
+        return FileResponse(WEB_DIR / "usage.html")
 
     app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
     return app

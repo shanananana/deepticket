@@ -67,6 +67,7 @@ async def iter_sse_chunks(
         if chunk.activity:
             if chunk.activity == _HEARTBEAT_ACTIVITY and chunk.activity_kind == _HEARTBEAT_KIND:
                 yield _HEARTBEAT_COMMENT
+                continue
             payload = {"activity": chunk.activity}
             if chunk.activity_kind:
                 payload["kind"] = chunk.activity_kind

@@ -19,7 +19,7 @@ export OPENHANDS_SUPPRESS_BANNER=1
 export OH_ALLOW_CORS_ORIGINS_0="http://127.0.0.1:${WEB_PORT}"
 
 mkdir -p workspace/project workspace/knowledge workspace/project/.openhands/skills
-if [[ "${STORAGE_BACKEND:-local}" == "local" ]]; then
+if [[ "${STORAGE_BACKEND:-redis}" == "local" ]]; then
   mkdir -p data
 fi
 
